@@ -12,6 +12,21 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // ============================================================================
+// PASSWORD PROTECTION
+// ============================================================================
+
+app.post("/api/auth", (req, res) => {
+  const { password } = req.body;
+  const sitePassword = process.env.SITE_PASSWORD || "digdeep";
+  
+  if (password === sitePassword) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, error: "Invalid password" });
+  }
+});
+
+// ============================================================================
 // CONFIGURATION
 // ============================================================================
 
