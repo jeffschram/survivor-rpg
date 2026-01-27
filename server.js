@@ -15,16 +15,46 @@ app.use(express.static(path.join(__dirname, "public")));
 // PASSWORD PROTECTION
 // ============================================================================
 
+// Check that SITE_PASSWORD is configured
+if (!process.env.SITE_PASSWORD) {
+  console.error("⚠️  WARNING: SITE_PASSWORD environment variable is not set!");
+  console.error("   The site will be inaccessible until you set it in .env");
+}
+
+// Store authenticated session tokens
+const authenticatedTokens = new Set();
+
 app.post("/api/auth", (req, res) => {
   const { password } = req.body;
-  const sitePassword = process.env.SITE_PASSWORD || "digdeep";
+  const sitePassword = process.env.SITE_PASSWORD;
+  
+  if (!sitePassword) {
+    return res.status(500).json({ success: false, error: "Site not configured" });
+  }
   
   if (password === sitePassword) {
-    res.json({ success: true });
+    // Generate auth token
+    const authToken = `auth_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    authenticatedTokens.add(authToken);
+    res.json({ success: true, authToken });
   } else {
     res.status(401).json({ success: false, error: "Invalid password" });
   }
 });
+
+// Middleware to protect /api/game/* routes
+function requireAuth(req, res, next) {
+  const authToken = req.headers['x-auth-token'];
+  
+  if (!authToken || !authenticatedTokens.has(authToken)) {
+    return res.status(401).json({ error: "Unauthorized - please authenticate first" });
+  }
+  
+  next();
+}
+
+// Apply auth middleware to all game routes
+app.use("/api/game", requireAuth);
 
 // ============================================================================
 // CONFIGURATION
