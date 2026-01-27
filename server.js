@@ -1,0 +1,513 @@
+const express = require("express");
+const path = require("path");
+const dotenv = require("dotenv");
+const fetch = require("node-fetch");
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const LOCATIONS = [
+  "the brutal savannas of Kenya",
+  "the ancient ruins and jungles of Cambodia",
+  "the storm-lashed beaches of the Marquesas",
+  "the dense Maya lowlands of Guatemala",
+  "the scorching outback of Australia",
+  "the misty highlands and rice terraces of China",
+  "the reef-ringed islands of Palau",
+  "the cyclone-prone shores of Fiji",
+  "the volcanic highlands of Iceland",
+  "the Patagonian fjords of southern Chile",
+  "the salt flats and canyons of Bolivia",
+  "the remote Faroe Islands in the North Atlantic",
+  "the jungles and tepui plateaus of Guyana"
+];
+
+const TRIBE_NAMES = [
+  "Koru", "Naru", "Solari", "Vanta", "Aroa", "Kael", "Maru", "Sable", "Kiri", "Tika"
+];
+
+const MERGED_NAMES = ["Aegis", "Horizon", "Crescent", "Ember", "Nova"];
+
+const ALL_STARS = [
+  "Boston Rob", "Parvati", "Sandra", "Tony", "Kim", "Cirie", "Tyson",
+  "Jeremy", "Sarah", "Yul", "Malcolm", "Andrea", "Wentworth", "Aubry",
+  "Natalie Anderson", "Ozzy", "Cochran", "Rupert"
+];
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function pickTwo(arr) {
+  const a = pick(arr);
+  let b = pick(arr);
+  while (b === a) b = pick(arr);
+  return [a, b];
+}
+
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// ============================================================================
+// GAME STATE
+// ============================================================================
+
+const sessions = new Map();
+
+class Game {
+  constructor(playerName, gender = "male", initialStats = null) {
+    this.playerName = playerName;
+    this.gender = gender;
+    this.location = pick(LOCATIONS);
+    
+    const [t1, t2] = pickTwo(TRIBE_NAMES);
+    const shuffled = shuffle(ALL_STARS);
+    
+    this.tribes = {
+      [t1]: [playerName, ...shuffled.slice(0, 8)],
+      [t2]: shuffled.slice(8)
+    };
+    this.playerTribe = t1;
+    this.opposingTribe = t2;
+    
+    this.day = 1;
+    this.phase = "pre-merge";
+    this.merged = false;
+    this.mergedTribeName = null;
+    
+    this.eliminated = [];
+    this.jury = [];
+    
+    // Use provided stats or defaults
+    this.stats = initialStats || { Social: 2.5, Strategy: 2.5, Challenge: 2.5, Threat: 2.5 };
+    
+    // Scene pacing
+    this.sceneCount = 0;
+    this.lastSceneType = "intro";
+    this.campStreak = 0;
+    this.campsSinceResults = 0;  // Track camps after challenge results
+    this.pendingTribal = false;  // True if player's tribe lost and tribal is coming
+    this.awaitingChallengeResults = false; // True if we just had challenge, need results
+    this.awaitingTribalResults = false; // True if we just had tribal, need results
+  }
+  
+  // Determine what scene type should come next
+  getRequiredSceneType() {
+    // After a challenge, MUST show results
+    if (this.awaitingChallengeResults) {
+      return "challenge_results";
+    }
+    
+    // After tribal council, MUST show results
+    if (this.awaitingTribalResults) {
+      return "tribal_results";
+    }
+    
+    // After challenge results where tribe lost, need 2 camps then tribal
+    if (this.pendingTribal) {
+      if (this.campsSinceResults < 2) {
+        return "camp";
+      } else {
+        return "tribal";
+      }
+    }
+    
+    // After 2 camp scenes (no pending tribal), MUST be challenge
+    if (this.campStreak >= 2) {
+      return "challenge";
+    }
+    
+    // Otherwise, natural progression (camp or challenge)
+    return null;
+  }
+  
+  recordScene(type) {
+    this.sceneCount++;
+    this.lastSceneType = type;
+    
+    if (type === "camp") {
+      this.campStreak++;
+      if (this.pendingTribal) {
+        this.campsSinceResults++;
+      }
+    } else if (type === "challenge") {
+      this.campStreak = 0;
+      this.awaitingChallengeResults = true;
+      this.day++;
+    } else if (type === "challenge_results") {
+      this.awaitingChallengeResults = false;
+      this.campsSinceResults = 0;
+      // pendingTribal is set separately based on who lost
+    } else if (type === "tribal") {
+      this.campStreak = 0;
+      this.awaitingTribalResults = true;
+    } else if (type === "tribal_results") {
+      this.awaitingTribalResults = false;
+      this.pendingTribal = false;
+      this.campsSinceResults = 0;
+      this.day++;
+    }
+  }
+  
+  updateStats(updates) {
+    if (!updates) return;
+    for (const [k, v] of Object.entries(updates)) {
+      if (this.stats[k] !== undefined && typeof v === "number") {
+        this.stats[k] = Math.max(1, Math.min(5, this.stats[k] + v));
+      }
+    }
+  }
+  
+  eliminate(name) {
+    if (this.eliminated.includes(name)) return;
+    this.eliminated.push(name);
+    
+    for (const tribe of Object.values(this.tribes)) {
+      const idx = tribe.indexOf(name);
+      if (idx !== -1) tribe.splice(idx, 1);
+    }
+    
+    if (this.merged && this.jury.length < 9) {
+      this.jury.push(name);
+    }
+  }
+  
+  checkMerge() {
+    const remaining = ALL_STARS.filter(s => !this.eliminated.includes(s)).length + 1;
+    if (!this.merged && remaining <= 12 && remaining >= 10) {
+      this.merged = true;
+      this.mergedTribeName = pick(MERGED_NAMES);
+      this.phase = "merge";
+      return true;
+    }
+    return false;
+  }
+  
+  getActivePlayers() {
+    return ALL_STARS.filter(s => !this.eliminated.includes(s));
+  }
+  
+  getTribemates() {
+    if (this.merged) return this.getActivePlayers();
+    return this.tribes[this.playerTribe].filter(p => p !== this.playerName);
+  }
+}
+
+// ============================================================================
+// SIMPLIFIED SYSTEM PROMPT
+// ============================================================================
+
+function buildPrompt(game, sceneDirective) {
+  const tribemates = game.getTribemates();
+  const active = game.getActivePlayers();
+  
+  const pronouns = game.gender === 'female' ? 'she/her' : game.gender === 'non-binary' ? 'they/them' : 'he/him';
+  
+  return `You are the Game Master for a Survivor RPG. The player competes against Survivor all-stars.
+
+STYLE:
+- Write in second person ("you"), present tense
+- Cinematic, immersive narration
+- Never break character or explain game mechanics
+- No code fences or markdown formatting
+
+PLAYER: ${game.playerName} (${game.gender}, ${pronouns})
+LOCATION: ${game.location}
+DAY: ${game.day}
+PHASE: ${game.phase}
+
+PLAYER TRIBE: ${game.playerTribe}
+TRIBEMATES: ${tribemates.join(", ")}
+${game.merged ? `MERGED TRIBE: ${game.mergedTribeName}` : `OPPOSING TRIBE: ${game.opposingTribe}`}
+
+ACTIVE ALL-STARS (${active.length}): ${active.join(", ")}
+${game.eliminated.length ? `ELIMINATED: ${game.eliminated.join(", ")}` : ""}
+${game.jury.length ? `JURY: ${game.jury.join(", ")}` : ""}
+
+${sceneDirective}
+
+RESPONSE FORMAT:
+1. Scene title as a markdown heading (### Title Here)
+2. Narrative: 2-3 SHORT paragraphs MAXIMUM. Be concise. No long descriptions.
+3. Four choices labeled A) B) C) D) - one line each
+4. End with exactly these two lines:
+SCENE_TYPE: <camp|challenge|challenge_results|tribal|tribal_results>
+STAT_UPDATES: {"Social": 0, "Strategy": 0, "Challenge": 0, "Threat": 0}
+
+CRITICAL: Keep scenes SHORT. Max 150 words for narrative. No walls of text.
+Do NOT use "Title:" prefix. Use ### for the title.`;
+}
+
+function getSceneDirective(game) {
+  const required = game.getRequiredSceneType();
+  
+  if (required === "challenge") {
+    return `SCENE TYPE: CHALLENGE (MANDATORY)
+
+Generate an IMMUNITY CHALLENGE scene. Describe the challenge setup and let the player choose their approach. Do NOT reveal the winner yet - that comes in the next scene.
+
+Focus on: the challenge description, tension, player's strategy choice.
+
+This MUST be a challenge scene. SCENE_TYPE must be: challenge`;
+  }
+  
+  if (required === "challenge_results") {
+    return `SCENE TYPE: CHALLENGE RESULTS (MANDATORY)
+
+This is the conclusion of the challenge. Reveal who won and who lost. Show the dramatic finish and reactions.
+
+The player's tribe ${game.pendingTribal ? "LOSES" : "WINS"} this challenge.
+
+This MUST be a challenge_results scene. SCENE_TYPE must be: challenge_results`;
+  }
+  
+  if (required === "camp" && game.pendingTribal) {
+    const campsLeft = 2 - game.campsSinceResults;
+    return `SCENE TYPE: CAMP (MANDATORY - ${campsLeft} camp scene(s) until Tribal)
+
+The player's tribe lost the challenge. Generate a camp scene with scrambling, strategy talk, and alliance maneuvering before Tribal Council.
+
+This MUST be a camp scene. SCENE_TYPE must be: camp`;
+  }
+  
+  if (required === "tribal") {
+    return `SCENE TYPE: TRIBAL COUNCIL (MANDATORY)
+
+Generate a TRIBAL COUNCIL scene. Show the discussion, tension, and voting. Do NOT reveal who is eliminated yet - that comes in the next scene.
+
+Focus on: tribal atmosphere, Jeff's questions, player's voting choice.
+
+This MUST be a tribal scene. SCENE_TYPE must be: tribal`;
+  }
+  
+  if (required === "tribal_results") {
+    return `SCENE TYPE: TRIBAL COUNCIL RESULTS (MANDATORY)
+
+This is the vote reveal. Jeff reads the votes one by one. Reveal who is eliminated and show their torch being snuffed.
+
+Pick an All-Star from the losing tribe to eliminate (not the player unless they made major mistakes).
+
+This MUST be a tribal_results scene. SCENE_TYPE must be: tribal_results`;
+  }
+  
+  // Natural flow - suggest based on where we are
+  if (game.sceneCount === 0) {
+    return `SCENE TYPE: PREMIERE
+
+This is the game premiere! Introduce the setting, the two tribes, and the all-star players. Set the stage for the season ahead. End with a camp scene where alliances begin forming.
+
+SCENE_TYPE should be: camp`;
+  }
+  
+  if (game.campStreak === 0) {
+    return `SCENE TYPE: CAMP (1 of 2 before challenge)
+
+Generate a camp/strategy scene. Alliances form, conversations happen, tension builds.
+
+SCENE_TYPE should be: camp`;
+  }
+  
+  if (game.campStreak === 1) {
+    return `SCENE TYPE: CAMP (2 of 2 - last before challenge)
+
+Generate a camp/strategy scene. This is the final camp scene before a challenge.
+
+SCENE_TYPE should be: camp`;
+  }
+  
+  return `Generate the next appropriate scene for the game.`;
+}
+
+// ============================================================================
+// API ENDPOINTS
+// ============================================================================
+
+app.post("/api/game/start", (req, res) => {
+  const { playerName, gender, stats } = req.body;
+  if (!playerName) {
+    return res.status(400).json({ error: "playerName required" });
+  }
+  
+  const sessionId = `game_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const game = new Game(playerName.trim(), gender || "male", stats || null);
+  sessions.set(sessionId, game);
+  
+  console.log(`New game started: ${sessionId} for ${playerName} (${game.gender})`);
+  console.log(`Location: ${game.location}`);
+  console.log(`Tribes: ${game.playerTribe} vs ${game.opposingTribe}`);
+  console.log(`Initial stats:`, game.stats);
+  
+  return res.json({
+    sessionId,
+    location: game.location,
+    playerTribe: game.playerTribe,
+    opposingTribe: game.opposingTribe,
+    tribemates: game.getTribemates(),
+    stats: game.stats,
+    gender: game.gender
+  });
+});
+
+app.post("/api/game/scene", async (req, res) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: "OPENAI_API_KEY not set" });
+  }
+  
+  const { sessionId, history } = req.body;
+  if (!sessionId) {
+    return res.status(400).json({ error: "sessionId required" });
+  }
+  
+  const game = sessions.get(sessionId);
+  if (!game) {
+    return res.status(404).json({ error: "Game not found" });
+  }
+  
+  // If we're about to generate challenge results, determine who won/lost now
+  if (game.awaitingResults) {
+    // 50% chance player's tribe loses
+    game.pendingTribal = Math.random() < 0.5;
+    console.log(`Challenge outcome determined: Player's tribe ${game.pendingTribal ? "LOSES" : "WINS"}`);
+  }
+  
+  const sceneDirective = getSceneDirective(game);
+  const systemPrompt = buildPrompt(game, sceneDirective);
+  
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...(history || [])
+  ];
+  
+  // If we need a specific scene type, add a user-level reminder
+  const required = game.getRequiredSceneType();
+  if (required) {
+    messages.push({
+      role: "user",
+      content: `[GM Note: The next scene must be a ${required.toUpperCase()} scene. Generate that now.]`
+    });
+  }
+  
+  console.log(`\n--- Scene Request ---`);
+  console.log(`Session: ${sessionId}`);
+  console.log(`Day: ${game.day}, Scene: ${game.sceneCount + 1}`);
+  console.log(`Camp streak: ${game.campStreak}, Camps since results: ${game.campsSinceResults}`);
+  console.log(`Awaiting challenge results: ${game.awaitingChallengeResults}, Awaiting tribal results: ${game.awaitingTribalResults}`);
+  console.log(`Pending tribal: ${game.pendingTribal}`);
+  console.log(`Required scene type: ${required || "any"}`);
+  
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o",
+        temperature: 0.85,
+        max_tokens: 600,
+        messages
+      })
+    });
+    
+    if (!response.ok) {
+      const err = await response.text();
+      console.error("OpenAI error:", err);
+      return res.status(response.status).json({ error: err });
+    }
+    
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    
+    if (!raw) {
+      return res.status(500).json({ error: "No response from model" });
+    }
+    
+    // Parse scene type
+    const sceneMatch = raw.match(/SCENE_TYPE:\s*(\w+)/i);
+    let sceneType = sceneMatch ? sceneMatch[1].toLowerCase() : "camp";
+    
+    // Enforce scene type if we required it
+    if (required && sceneType !== required) {
+      console.warn(`⚠️ Model returned ${sceneType} but ${required} was required. Overriding.`);
+      sceneType = required;
+    }
+    
+    // Parse stat updates
+    const statMatch = raw.match(/STAT_UPDATES:\s*(\{[^}]+\})/);
+    let statUpdates = null;
+    if (statMatch) {
+      try {
+        statUpdates = JSON.parse(statMatch[1]);
+      } catch (e) {
+        console.warn("Failed to parse stat updates");
+      }
+    }
+    
+    // Update game state
+    game.recordScene(sceneType);
+    game.updateStats(statUpdates);
+    
+    // Clean message for display
+    const cleanMessage = raw
+      .replace(/SCENE_TYPE:.*$/gm, "")
+      .replace(/STAT_UPDATES:.*$/gm, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .trim();
+    
+    console.log(`Scene type: ${sceneType}`);
+    console.log(`Stats updated: ${JSON.stringify(statUpdates)}`);
+    
+    return res.json({
+      message: cleanMessage,
+      sceneType,
+      stats: game.stats,
+      day: game.day,
+      phase: game.phase,
+      playerTribe: game.playerTribe,
+      tribemates: game.getTribemates()
+    });
+    
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/game/:sessionId", (req, res) => {
+  const game = sessions.get(req.params.sessionId);
+  if (!game) {
+    return res.status(404).json({ error: "Game not found" });
+  }
+  
+  return res.json({
+    day: game.day,
+    phase: game.phase,
+    stats: game.stats,
+    sceneCount: game.sceneCount,
+    campStreak: game.campStreak,
+    eliminated: game.eliminated,
+    jury: game.jury
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`\n🏝️  Survivor RPG running at http://localhost:${PORT}`);
+  console.log(`Model: ${process.env.OPENAI_MODEL || "gpt-4o"}\n`);
+});
