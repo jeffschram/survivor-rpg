@@ -484,6 +484,18 @@
       border-bottom: 1px solid var(--border);
     }
 
+    .tts-pause {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .choice-letter {
       font-family: 'Bitter', serif;
       font-weight: 700;
@@ -694,6 +706,10 @@
           <label for="speedSlider">Playback Speed: <span id="speedValue">1.0x</span></label>
           <input type="range" class="speed-slider" id="speedSlider" min="0.5" max="1.5" step="0.1" value="1.0">
         </div>
+        <div class="setting-item">
+          <label for="musicSlider">Music Volume: <span id="musicValue">30%</span></label>
+          <input type="range" class="speed-slider" id="musicSlider" min="0" max="100" step="10" value="30">
+        </div>
       </div>
     </aside>
 
@@ -823,6 +839,26 @@
     const startBtn = document.getElementById('startBtn');
     const sendBtn = document.getElementById('sendBtn');
     const ttsBtn = document.getElementById('ttsBtn');
+
+    // Background music
+    const themeMusic = new Audio('/audio/game-theme.mp3');
+    themeMusic.loop = false;
+    const savedMusicVolume = localStorage.getItem('musicVolume');
+    themeMusic.volume = savedMusicVolume !== null ? parseInt(savedMusicVolume) / 100 : 0.3;
+
+    // Music volume control
+    const musicSlider = document.getElementById('musicSlider');
+    const musicValue = document.getElementById('musicValue');
+    const initialMusicVol = savedMusicVolume !== null ? parseInt(savedMusicVolume) : 30;
+    musicSlider.value = initialMusicVol;
+    musicValue.textContent = initialMusicVol + '%';
+
+    musicSlider.addEventListener('input', () => {
+      const vol = parseInt(musicSlider.value);
+      themeMusic.volume = vol / 100;
+      musicValue.textContent = vol + '%';
+      localStorage.setItem('musicVolume', vol);
+    });
 
     // ============================================================================
     // TEXT-TO-SPEECH
@@ -1045,10 +1081,10 @@
         .replace(/>/g, '&gt;')
         // Remove "Title:" prefix
         .replace(/^Title:\s*/gim, '### ')
-        // Headings: ### Title or **Title** - add emoji (hidden from screen readers)
-        .replace(/^###\s*(.+)$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1</h3>`)
-        .replace(/^##\s*(.+)$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1</h3>`)
-        .replace(/^\*\*(.+)\*\*$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1</h3>`)
+        // Headings: ### Title or **Title** - add emoji (hidden from screen readers), add hidden period for TTS pause
+        .replace(/^###\s*(.+)$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1<span class="tts-pause">.</span></h3>`)
+        .replace(/^##\s*(.+)$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1<span class="tts-pause">.</span></h3>`)
+        .replace(/^\*\*(.+)\*\*$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1<span class="tts-pause">.</span></h3>`)
         // Bold text inline
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         // Preserve line breaks
@@ -1148,6 +1184,9 @@
         gameArea.classList.add('visible');
         sidebar.classList.add('visible');
         document.querySelector('.app').classList.add('with-sidebar');
+
+        // Start theme music
+        themeMusic.play().catch(() => {}); // Catch if autoplay blocked
 
         // Request first scene
         history.push({
