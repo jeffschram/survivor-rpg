@@ -183,6 +183,81 @@
       color: var(--text-muted);
     }
 
+    .settings-section {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .settings-section h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .setting-item + .setting-item {
+      margin-top: 12px;
+    }
+
+    .setting-item label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .voice-select {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+      color: var(--text);
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .voice-select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .speed-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--bg-input);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    .speed-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
     /* Main content */
     .main {
       display: flex;
@@ -336,17 +411,48 @@
       align-items: center;
     }
 
-    .scene-content {
+    .scene-card {
+      position: relative;
       max-width: 800px;
       width: 100%;
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-left: 3px solid var(--fire);
       border-radius: 12px;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .tts-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      opacity: 0.5;
+      z-index: 10;
+    }
+
+    .tts-btn:hover {
+      opacity: 1;
+      border-color: var(--accent);
+    }
+
+    .tts-btn.speaking {
+      opacity: 1;
+      background: var(--accent-glow);
+      border-color: var(--accent);
+    }
+
+    .scene-content {
       padding: 28px 32px;
+      padding-right: 60px; /* Room for TTS button */
       line-height: 1.75;
       font-size: 1.05rem;
-      animation: fadeIn 0.4s ease-out;
     }
     
     @keyframes fadeIn {
@@ -575,6 +681,20 @@
         <h3>Tribemates</h3>
         <ul class="tribe-list" id="tribematesList"></ul>
       </div>
+      
+      <div class="settings-section">
+        <h3>Settings</h3>
+        <div class="setting-item">
+          <label for="voiceSelect">Narrator Voice</label>
+          <select class="voice-select" id="voiceSelect">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label for="speedSlider">Playback Speed: <span id="speedValue">1.0x</span></label>
+          <input type="range" class="speed-slider" id="speedSlider" min="0.5" max="1.5" step="0.1" value="1.0">
+        </div>
+      </div>
     </aside>
 
     <main class="main">
@@ -603,8 +723,11 @@
 
       <section class="game-area" id="gameArea">
         <div class="scene-container" id="sceneContainer">
-          <div class="scene-content" id="sceneContent">
-            <!-- Current scene displays here -->
+          <div class="scene-card">
+            <button class="tts-btn" id="ttsBtn" title="Read aloud">🔊</button>
+            <div class="scene-content" id="sceneContent">
+              <!-- Current scene displays here -->
+            </div>
           </div>
           
           <div class="response-area" id="responseArea">
@@ -699,7 +822,149 @@
     const playerInput = document.getElementById('playerInput');
     const startBtn = document.getElementById('startBtn');
     const sendBtn = document.getElementById('sendBtn');
+    const ttsBtn = document.getElementById('ttsBtn');
 
+    // ============================================================================
+    // TEXT-TO-SPEECH
+    // ============================================================================
+
+    let isSpeaking = false;
+    let autoPlayEnabled = false; // Track if user wants auto-play
+    const synth = window.speechSynthesis;
+    const voiceSelect = document.getElementById('voiceSelect');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    let selectedVoice = null;
+    let playbackSpeed = parseFloat(localStorage.getItem('ttsSpeed')) || 1.0;
+
+    // Initialize speed slider
+    speedSlider.value = playbackSpeed;
+    speedValue.textContent = playbackSpeed.toFixed(1) + 'x';
+
+    speedSlider.addEventListener('input', () => {
+      playbackSpeed = parseFloat(speedSlider.value);
+      speedValue.textContent = playbackSpeed.toFixed(1) + 'x';
+      localStorage.setItem('ttsSpeed', playbackSpeed);
+    });
+
+    // Populate voice dropdown
+    function populateVoices() {
+      const voices = synth.getVoices();
+      if (voices.length === 0) return;
+
+      // Filter to English voices and sort by name
+      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      englishVoices.sort((a, b) => a.name.localeCompare(b.name));
+
+      voiceSelect.innerHTML = '';
+      englishVoices.forEach(voice => {
+        const option = document.createElement('option');
+        option.value = voice.name; // Use actual voice name as value
+        option.textContent = voice.name.replace('Microsoft ', '').replace(' Online (Natural)', '');
+        voiceSelect.appendChild(option);
+      });
+
+      // Try to restore saved preference or default to Google UK English Male
+      const savedVoice = localStorage.getItem('ttsVoice');
+      if (savedVoice && Array.from(voiceSelect.options).some(o => o.value === savedVoice)) {
+        voiceSelect.value = savedVoice;
+      } else {
+        // Try to default to a good narrator voice (in priority order)
+        const goodDefaults = ['Google UK English Male', 'Google UK English Female', 'Daniel', 'Samantha', 'Karen'];
+        for (const name of goodDefaults) {
+          const match = Array.from(voiceSelect.options).find(o => o.value.includes(name));
+          if (match) {
+            voiceSelect.value = match.value;
+            break;
+          }
+        }
+      }
+      
+      updateSelectedVoice();
+    }
+
+    function updateSelectedVoice() {
+      const voices = synth.getVoices();
+      const voiceName = voiceSelect.value;
+      selectedVoice = voices.find(v => v.name === voiceName) || null;
+      
+      // Save preference
+      if (selectedVoice) {
+        localStorage.setItem('ttsVoice', selectedVoice.name);
+      }
+    }
+
+    voiceSelect.addEventListener('change', updateSelectedVoice);
+
+    function speakScene(isAutoPlay = false) {
+      // If user manually clicks while speaking, stop and disable auto-play
+      if (isSpeaking && !isAutoPlay) {
+        synth.cancel();
+        isSpeaking = false;
+        autoPlayEnabled = false; // User paused, disable auto-play
+        ttsBtn.classList.remove('speaking');
+        ttsBtn.textContent = '🔊';
+        return;
+      }
+
+      // Get text content from scene, excluding aria-hidden elements
+      const clone = sceneContent.cloneNode(true);
+      clone.querySelectorAll('[aria-hidden="true"]').forEach(el => el.remove());
+      const sceneText = clone.innerText || clone.textContent;
+      if (!sceneText.trim()) return;
+
+      // If user manually clicked play, enable auto-play for future scenes
+      if (!isAutoPlay) {
+        autoPlayEnabled = true;
+      }
+
+      // Create utterance
+      const utterance = new SpeechSynthesisUtterance(sceneText);
+      utterance.rate = playbackSpeed;
+      utterance.pitch = 1;
+      
+      // Use selected voice
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+
+      // Update UI
+      isSpeaking = true;
+      ttsBtn.classList.add('speaking');
+      ttsBtn.textContent = '⏸️';
+
+      utterance.onend = () => {
+        isSpeaking = false;
+        ttsBtn.classList.remove('speaking');
+        ttsBtn.textContent = '🔊';
+      };
+
+      utterance.onerror = () => {
+        isSpeaking = false;
+        ttsBtn.classList.remove('speaking');
+        ttsBtn.textContent = '🔊';
+      };
+
+      synth.speak(utterance);
+    }
+
+    // Load voices (some browsers load async)
+    populateVoices();
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = populateVoices;
+    }
+
+    ttsBtn.addEventListener('click', () => speakScene(false));
+
+    // Stop speaking when loading new scene
+    function stopSpeaking() {
+      if (isSpeaking) {
+        synth.cancel();
+        isSpeaking = false;
+        ttsBtn.classList.remove('speaking');
+        ttsBtn.textContent = '🔊';
+      }
+    }
 
     // ============================================================================
     // UI HELPERS
@@ -780,10 +1045,10 @@
         .replace(/>/g, '&gt;')
         // Remove "Title:" prefix
         .replace(/^Title:\s*/gim, '### ')
-        // Headings: ### Title or **Title** - add emoji
-        .replace(/^###\s*(.+)$/gm, `<h3 class="scene-title">${emoji} $1</h3>`)
-        .replace(/^##\s*(.+)$/gm, `<h3 class="scene-title">${emoji} $1</h3>`)
-        .replace(/^\*\*(.+)\*\*$/gm, `<h3 class="scene-title">${emoji} $1</h3>`)
+        // Headings: ### Title or **Title** - add emoji (hidden from screen readers)
+        .replace(/^###\s*(.+)$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1</h3>`)
+        .replace(/^##\s*(.+)$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1</h3>`)
+        .replace(/^\*\*(.+)\*\*$/gm, `<h3 class="scene-title"><span aria-hidden="true" role="presentation" aria-label="">${emoji}</span> $1</h3>`)
         // Bold text inline
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         // Preserve line breaks
@@ -834,9 +1099,15 @@
       
       // Scroll to top of scene
       sceneContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Auto-play if enabled (with small delay to let content render)
+      if (autoPlayEnabled) {
+        setTimeout(() => speakScene(true), 300);
+      }
     }
     
     function showSceneLoading() {
+      stopSpeaking();
       sceneContent.classList.add('loading');
       sceneContent.innerHTML = '<div class="loading-indicator"><span></span><span></span><span></span></div>';
       responseArea.classList.remove('visible');
