@@ -119,6 +119,10 @@ class Game {
     this.pendingTribal = false;  // True if player's tribe lost and tribal is coming
     this.awaitingChallengeResults = false; // True if we just had challenge, need results
     this.awaitingTribalResults = false; // True if we just had tribal, need results
+    
+    // Track opposing tribe's elimination (revealed at next challenge)
+    this.pendingOpposingElimination = null; // Name of player voted out from other tribe
+    this.lastChallengeWon = null; // true = player won, false = player lost, null = no challenge yet
   }
   
   // Determine what scene type should come next
@@ -163,11 +167,32 @@ class Game {
     } else if (type === "challenge") {
       this.campStreak = 0;
       this.awaitingChallengeResults = true;
+      // Clear any pending elimination reveal (it was shown at challenge start)
+      if (this.pendingOpposingElimination) {
+        this.pendingOpposingElimination = null;
+      }
       this.day++;
     } else if (type === "challenge_results") {
       this.awaitingChallengeResults = false;
       this.campsSinceResults = 0;
-      // pendingTribal is set separately based on who lost
+      
+      // Handle outcome based on who won
+      if (this.lastChallengeWon) {
+        // Player's tribe won - opposing tribe goes to tribal (off-screen)
+        // Pick someone from opposing tribe to eliminate
+        const opposingMembers = this.tribes[this.opposingTribe] || [];
+        if (opposingMembers.length > 0) {
+          const eliminated = opposingMembers[Math.floor(Math.random() * opposingMembers.length)];
+          this.pendingOpposingElimination = eliminated;
+          this.eliminate(eliminated);
+        }
+        this.pendingTribal = false;
+      } else {
+        // Player's tribe lost - they go to tribal
+        this.pendingTribal = true;
+      }
+      // Reset for next challenge
+      this.lastChallengeWon = null;
     } else if (type === "tribal") {
       this.campStreak = 0;
       this.awaitingTribalResults = true;
@@ -272,9 +297,14 @@ function getSceneDirective(game) {
   const required = game.getRequiredSceneType();
   
   if (required === "challenge") {
+    // If there's a pending elimination from opposing tribe, reveal it at challenge start
+    const revealElimination = game.pendingOpposingElimination 
+      ? `\n\nIMPORTANT: As the tribes arrive for the challenge, the player notices ${game.pendingOpposingElimination} is missing from the ${game.opposingTribe} tribe. They were voted out at the last Tribal Council. Mention this observation naturally in the scene.`
+      : "";
+    
     return `SCENE TYPE: CHALLENGE (MANDATORY)
 
-Generate an IMMUNITY CHALLENGE scene. Describe the challenge setup and let the player choose their approach. Do NOT reveal the winner yet - that comes in the next scene.
+Generate an IMMUNITY CHALLENGE scene. Describe the challenge setup and let the player choose their approach. Do NOT reveal the winner yet - that comes in the next scene.${revealElimination}
 
 Focus on: the challenge description, tension, player's strategy choice.
 
@@ -282,13 +312,31 @@ This MUST be a challenge scene. SCENE_TYPE must be: challenge`;
   }
   
   if (required === "challenge_results") {
-    return `SCENE TYPE: CHALLENGE RESULTS (MANDATORY)
+    // Determine outcome - alternate or randomize, but track it
+    const playerWins = game.lastChallengeWon !== null ? game.lastChallengeWon : Math.random() > 0.4;
+    game.lastChallengeWon = playerWins; // Store for later reference
+    
+    if (playerWins) {
+      return `SCENE TYPE: CHALLENGE RESULTS (MANDATORY)
 
-This is the conclusion of the challenge. Reveal who won and who lost. Show the dramatic finish and reactions.
+This is the conclusion of the challenge. The player's tribe (${game.playerTribe}) WINS immunity!
 
-The player's tribe ${game.pendingTribal ? "LOSES" : "WINS"} this challenge.
+Show the dramatic finish, celebration, and relief. The ${game.opposingTribe} tribe will go to Tribal Council tonight, but the player won't see what happens there - they'll only find out who was voted off when they see the other tribe at the next challenge.
+
+End with the player's tribe heading back to camp, safe for another day.
 
 This MUST be a challenge_results scene. SCENE_TYPE must be: challenge_results`;
+    } else {
+      return `SCENE TYPE: CHALLENGE RESULTS (MANDATORY)
+
+This is the conclusion of the challenge. The player's tribe (${game.playerTribe}) LOSES immunity.
+
+Show the dramatic finish, disappointment, and tension. The player's tribe must go to Tribal Council. The ${game.opposingTribe} tribe is safe.
+
+End with the weight of knowing someone from the player's tribe will be going home.
+
+This MUST be a challenge_results scene. SCENE_TYPE must be: challenge_results`;
+    }
   }
   
   if (required === "camp" && game.pendingTribal) {
@@ -329,18 +377,27 @@ This is the game premiere! Introduce the setting, the two tribes, and the all-st
 SCENE_TYPE should be: camp`;
   }
   
+  // After a win, camp scenes are more relaxed (no tribal pressure)
+  const wonLastChallenge = game.pendingOpposingElimination !== null;
+  
   if (game.campStreak === 0) {
+    const mood = wonLastChallenge 
+      ? "The tribe is in good spirits after winning immunity. Focus on alliance building, strategy discussions, or character moments."
+      : "Generate a camp/strategy scene. Alliances form, conversations happen, tension builds.";
     return `SCENE TYPE: CAMP (1 of 2 before challenge)
 
-Generate a camp/strategy scene. Alliances form, conversations happen, tension builds.
+${mood}
 
 SCENE_TYPE should be: camp`;
   }
   
   if (game.campStreak === 1) {
+    const mood = wonLastChallenge
+      ? "Another day of safety. The tribe prepares for the next challenge. Maybe speculation about what happened at the other tribe's Tribal Council."
+      : "This is the final camp scene before a challenge.";
     return `SCENE TYPE: CAMP (2 of 2 - last before challenge)
 
-Generate a camp/strategy scene. This is the final camp scene before a challenge.
+${mood}
 
 SCENE_TYPE should be: camp`;
   }
