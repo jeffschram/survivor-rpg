@@ -34,6 +34,63 @@
       min-height: 100vh;
     }
 
+    /* Password Screen */
+    .password-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .password-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .password-card h1 {
+      font-family: 'Bitter', serif;
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    .password-card > p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .password-form {
+      display: flex;
+      gap: 12px;
+    }
+
+    .password-form input {
+      flex: 1;
+      padding: 14px 16px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+    }
+
+    .password-form input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .password-error {
+      color: #ff6b6b;
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+
     .app {
       display: grid;
       grid-template-columns: 1fr;
@@ -101,41 +158,6 @@
     .info-value {
       font-weight: 600;
       color: var(--gold);
-    }
-
-    .stats-section h3 {
-      font-family: 'Bitter', serif;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 12px;
-    }
-
-    .stats-list {
-      list-style: none;
-      display: grid;
-      gap: 8px;
-    }
-
-    .stats-list li {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 12px;
-      background: var(--bg-input);
-      border-radius: 6px;
-      border-left: 3px solid var(--accent);
-    }
-
-    .stat-name {
-      font-weight: 600;
-    }
-
-    .stat-value {
-      font-family: 'Bitter', serif;
-      font-size: 1.1rem;
-      color: var(--accent);
     }
 
     .tribe-section h3 {
@@ -270,103 +292,6 @@
       letter-spacing: 0.05em;
     }
 
-    .gender-options {
-      display: flex;
-      gap: 12px;
-    }
-
-    .gender-option {
-      flex: 1;
-      padding: 12px;
-      background: var(--bg-input);
-      border: 2px solid var(--border);
-      border-radius: 8px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
-    }
-
-    .gender-option:hover {
-      border-color: var(--text-muted);
-    }
-
-    .gender-option.selected {
-      border-color: var(--accent);
-      background: var(--accent-glow);
-    }
-
-    .gender-option input {
-      display: none;
-    }
-
-    .stat-slider {
-      margin-bottom: 16px;
-    }
-
-    .stat-slider-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 6px;
-    }
-
-    .stat-slider-name {
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-
-    .stat-slider-value {
-      color: var(--accent);
-      font-family: 'Bitter', serif;
-    }
-
-    .stat-slider input[type="range"] {
-      width: 100%;
-      height: 8px;
-      background: var(--bg-input);
-      border-radius: 4px;
-      outline: none;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-
-    .stat-slider input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 20px;
-      height: 20px;
-      background: var(--accent);
-      border-radius: 50%;
-      cursor: pointer;
-    }
-
-    .stat-slider input[type="range"]::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      background: var(--accent);
-      border-radius: 50%;
-      cursor: pointer;
-      border: none;
-    }
-
-    .stat-slider-hint {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    .points-remaining {
-      text-align: center;
-      padding: 12px;
-      background: var(--bg-input);
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-
-    .points-remaining span {
-      color: var(--gold);
-      font-weight: 700;
-      font-size: 1.2rem;
-    }
-
     .btn {
       background: var(--accent);
       color: var(--bg-dark);
@@ -402,54 +327,45 @@
       display: flex;
     }
 
-    .scene-log {
+    .scene-container {
       flex: 1;
       overflow-y: auto;
       padding: 32px;
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      align-items: center;
     }
 
-    .message {
+    .scene-content {
       max-width: 800px;
-    }
-
-    .message.user {
-      align-self: flex-end;
-      text-align: right;
-    }
-
-    .message-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    .message-content {
+      width: 100%;
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px 24px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      font-size: 1.02rem;
-    }
-
-    .message.user .message-content {
-      background: var(--accent-glow);
-      border-color: var(--accent);
-    }
-
-    .message.assistant .message-content {
       border-left: 3px solid var(--fire);
-      white-space: normal;
+      border-radius: 12px;
+      padding: 28px 32px;
+      line-height: 1.75;
+      font-size: 1.05rem;
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
-    .scene-log .message.assistant:last-child {
-      margin-bottom: 300px;
+    .scene-content.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      color: var(--text-muted);
     }
 
     .scene-title {
@@ -473,23 +389,85 @@
       font-weight: 600;
     }
 
-    /* Input area */
-    .input-area {
-      padding: 20px 32px;
-      border-top: 1px solid var(--border);
-      background: var(--bg-card);
+    /* Response area */
+    .response-area {
+      max-width: 800px;
+      width: 100%;
+      margin-top: 24px;
+      display: none;
+    }
+    
+    .response-area.visible {
+      display: block;
     }
 
-    .input-row {
+    .choices-area {
+      display: none;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .choices-area:not(:empty) {
+      display: grid;
+    }
+
+    .choice-btn {
+      padding: 14px 18px;
+      background: var(--bg-input);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .choice-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .choice-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .choice-btn .choice-key {
+      font-family: 'Bitter', serif;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .choice-btn .choice-text {
+      flex: 1;
+    }
+
+    .custom-input-area {
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .custom-input-area.no-choices {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .custom-input-row {
       display: flex;
       gap: 12px;
       max-width: 800px;
     }
 
-    .input-area input[type="text"] {
+    .custom-input-area input[type="text"] {
       flex: 1;
-      padding: 14px 16px;
-      font-size: 1rem;
+      padding: 12px 16px;
+      font-size: 0.95rem;
       font-family: inherit;
       background: var(--bg-input);
       border: 1px solid var(--border);
@@ -497,19 +475,13 @@
       color: var(--text);
     }
 
-    .input-area input[type="text"]:focus {
+    .custom-input-area input[type="text"]:focus {
       outline: none;
       border-color: var(--accent);
     }
 
-    .input-area input[type="text"]::placeholder {
+    .custom-input-area input[type="text"]::placeholder {
       color: var(--text-muted);
-    }
-
-    .input-hint {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-top: 8px;
     }
 
     /* Loading state */
@@ -545,14 +517,39 @@
         display: none !important;
       }
       
-      .scene-log, .input-area {
+      .scene-container {
         padding: 16px;
+      }
+      
+      .scene-content {
+        padding: 20px;
+      }
+      
+      .response-area {
+        margin-top: 16px;
+      }
+      
+      .choices-area {
+        grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
-  <div class="app">
+  <!-- Password Screen -->
+  <div class="password-screen" id="passwordScreen">
+    <div class="password-card">
+      <h1>🔥 Survivor RPG</h1>
+      <p>Enter password to continue</p>
+      <div class="password-form">
+        <input type="password" id="passwordInput" placeholder="Password" autofocus />
+        <button class="btn" id="passwordBtn">Enter</button>
+      </div>
+      <p class="password-error" id="passwordError"></p>
+    </div>
+  </div>
+
+  <div class="app" id="mainApp" style="display: none;">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <h2>Castaway</h2>
@@ -574,16 +571,6 @@
         </div>
       </div>
       
-      <div class="stats-section">
-        <h3>Stats</h3>
-        <ul class="stats-list" id="statsList">
-          <li><span class="stat-name">Social</span><span class="stat-value">2.5</span></li>
-          <li><span class="stat-name">Strategy</span><span class="stat-value">2.5</span></li>
-          <li><span class="stat-name">Challenge</span><span class="stat-value">2.5</span></li>
-          <li><span class="stat-name">Threat</span><span class="stat-value">2.0</span></li>
-        </ul>
-      </div>
-      
       <div class="tribe-section">
         <h3>Tribemates</h3>
         <ul class="tribe-list" id="tribematesList"></ul>
@@ -598,74 +585,15 @@
 
       <section class="start-screen" id="startScreen">
         <div class="start-card">
-          <h2>Create Your Castaway</h2>
+          <h2>Welcome, Castaway</h2>
           <p>
-            Customize your character before competing against Survivor legends.
+            Enter your name to begin competing against Survivor legends.
           </p>
           
           <div class="character-form">
             <div class="form-group">
-              <label>Name</label>
+              <label>Your Name</label>
               <input type="text" id="playerNameInput" placeholder="Enter your name" maxlength="20" autofocus />
-            </div>
-            
-            <div class="form-group">
-              <label>Gender</label>
-              <div class="gender-options">
-                <label class="gender-option selected" id="genderMale">
-                  <input type="radio" name="gender" value="male" checked />
-                  Male
-                </label>
-                <label class="gender-option" id="genderFemale">
-                  <input type="radio" name="gender" value="female" />
-                  Female
-                </label>
-                <label class="gender-option" id="genderNonbinary">
-                  <input type="radio" name="gender" value="non-binary" />
-                  Non-binary
-                </label>
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label>Allocate Your Skills (10 points)</label>
-              <div class="points-remaining">Points remaining: <span id="pointsRemaining">0</span></div>
-              
-              <div class="stat-slider">
-                <div class="stat-slider-header">
-                  <span class="stat-slider-name">Social</span>
-                  <span class="stat-slider-value" id="socialValue">2.5</span>
-                </div>
-                <input type="range" id="socialSlider" min="1" max="4" step="0.5" value="2.5" />
-                <div class="stat-slider-hint">Building trust, reading people, likability</div>
-              </div>
-              
-              <div class="stat-slider">
-                <div class="stat-slider-header">
-                  <span class="stat-slider-name">Strategy</span>
-                  <span class="stat-slider-value" id="strategyValue">2.5</span>
-                </div>
-                <input type="range" id="strategySlider" min="1" max="4" step="0.5" value="2.5" />
-                <div class="stat-slider-hint">Planning, positioning, timing moves</div>
-              </div>
-              
-              <div class="stat-slider">
-                <div class="stat-slider-header">
-                  <span class="stat-slider-name">Challenge</span>
-                  <span class="stat-slider-value" id="challengeValue">2.5</span>
-                </div>
-                <input type="range" id="challengeSlider" min="1" max="4" step="0.5" value="2.5" />
-                <div class="stat-slider-hint">Physical ability, puzzles, endurance</div>
-              </div>
-              
-              <div class="stat-slider">
-                <div class="stat-slider-header">
-                  <span class="stat-slider-name">Threat Level</span>
-                  <span class="stat-slider-value" id="threatValue">2.5</span>
-                </div>
-                <input type="range" id="threatSlider" min="1" max="4" step="0.5" value="2.5" />
-                <div class="stat-slider-hint">How dangerous others see you (lower = under the radar)</div>
-              </div>
             </div>
           </div>
           
@@ -674,20 +602,84 @@
       </section>
 
       <section class="game-area" id="gameArea">
-        <div class="scene-log" id="sceneLog"></div>
-        
-        <div class="input-area">
-          <div class="input-row">
-            <input type="text" id="playerInput" placeholder="Type your response or choice (A, B, C, D)..." />
-            <button class="btn" id="sendBtn" disabled>Send</button>
+        <div class="scene-container" id="sceneContainer">
+          <div class="scene-content" id="sceneContent">
+            <!-- Current scene displays here -->
           </div>
-          <p class="input-hint">Press Enter to send</p>
+          
+          <div class="response-area" id="responseArea">
+            <div class="choices-area" id="choicesArea">
+              <!-- Choice buttons will be inserted here -->
+            </div>
+            
+            <div class="custom-input-area">
+              <div class="custom-input-row">
+                <input type="text" id="playerInput" placeholder="Or type a custom response..." />
+                <button class="btn" id="sendBtn" disabled>Send</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
   </div>
 
   <script>
+    // ============================================================================
+    // PASSWORD PROTECTION
+    // ============================================================================
+    
+    const passwordScreen = document.getElementById('passwordScreen');
+    const mainApp = document.getElementById('mainApp');
+    const passwordInput = document.getElementById('passwordInput');
+    const passwordBtn = document.getElementById('passwordBtn');
+    const passwordError = document.getElementById('passwordError');
+
+    async function checkPassword() {
+      const password = passwordInput.value;
+      if (!password) return;
+
+      passwordBtn.disabled = true;
+      passwordBtn.textContent = '...';
+      passwordError.textContent = '';
+
+      try {
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          passwordScreen.style.display = 'none';
+          mainApp.style.display = 'grid';
+          sessionStorage.setItem('authenticated', 'true');
+        } else {
+          passwordError.textContent = 'Invalid password';
+          passwordInput.value = '';
+          passwordInput.focus();
+        }
+      } catch (error) {
+        passwordError.textContent = 'Connection error';
+      } finally {
+        passwordBtn.disabled = false;
+        passwordBtn.textContent = 'Enter';
+      }
+    }
+
+    // Check if already authenticated this session
+    if (sessionStorage.getItem('authenticated') === 'true') {
+      passwordScreen.style.display = 'none';
+      mainApp.style.display = 'grid';
+    }
+
+    passwordBtn.addEventListener('click', checkPassword);
+    passwordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') checkPassword();
+    });
+
     // ============================================================================
     // STATE
     // ============================================================================
@@ -700,70 +692,14 @@
     const startScreen = document.getElementById('startScreen');
     const gameArea = document.getElementById('gameArea');
     const sidebar = document.getElementById('sidebar');
-    const sceneLog = document.getElementById('sceneLog');
+    const sceneContent = document.getElementById('sceneContent');
+    const responseArea = document.getElementById('responseArea');
+    const choicesArea = document.getElementById('choicesArea');
     const playerNameInput = document.getElementById('playerNameInput');
     const playerInput = document.getElementById('playerInput');
     const startBtn = document.getElementById('startBtn');
     const sendBtn = document.getElementById('sendBtn');
 
-    // Character creation elements
-    const sliders = {
-      Social: document.getElementById('socialSlider'),
-      Strategy: document.getElementById('strategySlider'),
-      Challenge: document.getElementById('challengeSlider'),
-      Threat: document.getElementById('threatSlider')
-    };
-    const valueDisplays = {
-      Social: document.getElementById('socialValue'),
-      Strategy: document.getElementById('strategyValue'),
-      Challenge: document.getElementById('challengeValue'),
-      Threat: document.getElementById('threatValue')
-    };
-    const pointsRemainingEl = document.getElementById('pointsRemaining');
-    const genderOptions = document.querySelectorAll('.gender-option');
-
-    const TOTAL_POINTS = 10;
-
-    function updatePointsRemaining() {
-      const used = Object.values(sliders).reduce((sum, s) => sum + parseFloat(s.value), 0);
-      const remaining = TOTAL_POINTS - used;
-      pointsRemainingEl.textContent = remaining.toFixed(1);
-      pointsRemainingEl.style.color = remaining < 0 ? '#ff6b6b' : remaining === 0 ? '#4ade80' : '';
-    }
-
-    function getCharacterStats() {
-      return {
-        Social: parseFloat(sliders.Social.value),
-        Strategy: parseFloat(sliders.Strategy.value),
-        Challenge: parseFloat(sliders.Challenge.value),
-        Threat: parseFloat(sliders.Threat.value)
-      };
-    }
-
-    function getSelectedGender() {
-      const selected = document.querySelector('input[name="gender"]:checked');
-      return selected ? selected.value : 'male';
-    }
-
-    // Set up slider listeners
-    Object.entries(sliders).forEach(([name, slider]) => {
-      slider.addEventListener('input', () => {
-        valueDisplays[name].textContent = slider.value;
-        updatePointsRemaining();
-      });
-    });
-
-    // Set up gender option listeners
-    genderOptions.forEach(option => {
-      option.addEventListener('click', () => {
-        genderOptions.forEach(o => o.classList.remove('selected'));
-        option.classList.add('selected');
-        option.querySelector('input').checked = true;
-      });
-    });
-
-    // Initialize points display
-    updatePointsRemaining();
 
     // ============================================================================
     // UI HELPERS
@@ -774,19 +710,11 @@
       sendBtn.disabled = state || !sessionId;
       sendBtn.textContent = state ? '...' : 'Send';
       startBtn.disabled = state;
-    }
-
-    function updateStats(stats) {
-      if (!stats) return;
-      const list = document.getElementById('statsList');
-      list.innerHTML = '';
       
-      for (const [name, value] of Object.entries(stats)) {
-        const li = document.createElement('li');
-        const displayValue = Number.isInteger(value) ? value : value.toFixed(1);
-        li.innerHTML = `<span class="stat-name">${name}</span><span class="stat-value">${displayValue}</span>`;
-        list.appendChild(li);
-      }
+      // Enable/disable choice buttons
+      document.querySelectorAll('.choice-btn').forEach(btn => {
+        btn.disabled = state;
+      });
     }
 
     function updateGameInfo(data) {
@@ -797,7 +725,6 @@
         document.getElementById('phaseDisplay').textContent = phase;
       }
       if (data.playerTribe) document.getElementById('tribeDisplay').textContent = data.playerTribe;
-      if (data.stats) updateStats(data.stats);
       if (data.tribemates) updateTribemates(data.tribemates);
     }
 
@@ -823,11 +750,30 @@
       finale: '👑'
     };
 
+    // Extract choices (A, B, C, D lines) from content
+    function extractChoices(text) {
+      const choices = [];
+      const regex = /^([A-D])\)\s*(.+)$/gm;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        choices.push({ key: match[1], text: match[2].trim() });
+      }
+      return choices;
+    }
+
+    // Remove choices from content for display
+    function removeChoicesFromContent(text) {
+      return text.replace(/^[A-D]\)\s*.+$/gm, '').trim();
+    }
+
     function formatContent(text, sceneType) {
       const emoji = SCENE_EMOJIS[sceneType] || '🌴';
       
+      // Remove choices - they'll be rendered as buttons
+      let cleanText = removeChoicesFromContent(text);
+      
       // Parse markdown headings and basic formatting
-      let html = text
+      let html = cleanText
         // Escape HTML
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -840,69 +786,62 @@
         .replace(/^\*\*(.+)\*\*$/gm, `<h3 class="scene-title">${emoji} $1</h3>`)
         // Bold text inline
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        // Choices formatting
-        .replace(/^([A-D]\))\s*/gm, '<span class="choice-letter">$1</span> ')
         // Preserve line breaks
         .replace(/\n/g, '<br>')
         // Remove extra line breaks after headings
-        .replace(/<\/h3>(<br>)+/g, '</h3>');
+        .replace(/<\/h3>(<br>)+/g, '</h3>')
+        // Clean up multiple consecutive <br> tags
+        .replace(/(<br>){3,}/g, '<br><br>');
       
       return html;
     }
 
-    function addMessage(role, content, sceneType = null) {
-      const wrapper = document.createElement('div');
-      wrapper.className = `message ${role}`;
-
-      const label = document.createElement('div');
-      label.className = 'message-label';
-      label.textContent = role === 'assistant' ? 'Game Master' : 'You';
-
-      const body = document.createElement('div');
-      body.className = 'message-content';
+    function renderChoiceButtons(choices) {
+      choicesArea.innerHTML = '';
+      const customInputArea = document.querySelector('.custom-input-area');
       
-      if (role === 'assistant') {
-        body.innerHTML = formatContent(content, sceneType);
-      } else {
-        body.textContent = content;
+      if (choices.length === 0) {
+        choicesArea.style.display = 'none';
+        customInputArea.classList.add('no-choices');
+        return;
       }
-
-      wrapper.appendChild(label);
-      wrapper.appendChild(body);
-      sceneLog.appendChild(wrapper);
       
-      // Scroll to new message after a brief delay for rendering
-      requestAnimationFrame(() => {
-        wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      choicesArea.style.display = 'grid';
+      customInputArea.classList.remove('no-choices');
+      
+      choices.forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.disabled = isLoading;
+        btn.innerHTML = `
+          <span class="choice-key">${choice.key}</span>
+          <span class="choice-text">${choice.text}</span>
+        `;
+        btn.addEventListener('click', () => handleChoiceClick(choice.key));
+        choicesArea.appendChild(btn);
       });
     }
 
-    function showLoading() {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'message assistant';
-      wrapper.id = 'loadingMessage';
+    function handleChoiceClick(choiceKey) {
+      if (isLoading) return;
+      sendResponse(choiceKey);
+    }
 
-      const label = document.createElement('div');
-      label.className = 'message-label';
-      label.textContent = 'Game Master';
-
-      const body = document.createElement('div');
-      body.className = 'message-content loading-indicator';
-      body.innerHTML = '<span></span><span></span><span></span>';
-
-      wrapper.appendChild(label);
-      wrapper.appendChild(body);
-      sceneLog.appendChild(wrapper);
+    function displayScene(content, sceneType = null) {
+      sceneContent.classList.remove('loading');
+      sceneContent.innerHTML = formatContent(content, sceneType);
+      responseArea.classList.add('visible');
       
-      requestAnimationFrame(() => {
-        wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+      // Scroll to top of scene
+      sceneContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    function showSceneLoading() {
+      sceneContent.classList.add('loading');
+      sceneContent.innerHTML = '<div class="loading-indicator"><span></span><span></span><span></span></div>';
+      responseArea.classList.remove('visible');
     }
 
-    function hideLoading() {
-      const el = document.getElementById('loadingMessage');
-      if (el) el.remove();
-    }
 
     // ============================================================================
     // API CALLS
@@ -915,23 +854,13 @@
         return;
       }
 
-      // Validate points
-      const stats = getCharacterStats();
-      const totalUsed = Object.values(stats).reduce((sum, v) => sum + v, 0);
-      if (Math.abs(totalUsed - TOTAL_POINTS) > 0.1) {
-        alert(`Please allocate exactly ${TOTAL_POINTS} points. You have ${totalUsed.toFixed(1)} allocated.`);
-        return;
-      }
-
-      const gender = getSelectedGender();
-
       setLoading(true);
 
       try {
         const response = await fetch('/api/game/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerName, gender, stats })
+          body: JSON.stringify({ playerName })
         });
 
         const data = await response.json();
@@ -955,7 +884,6 @@
           content: 'Begin the game. This is the season premiere.'
         });
 
-        addMessage('user', `Starting game as ${playerName}...`);
         await requestScene();
 
       } catch (error) {
@@ -969,7 +897,10 @@
       if (!sessionId) return;
 
       setLoading(true);
-      showLoading();
+      showSceneLoading();
+      
+      // Disable choice buttons while loading
+      document.querySelectorAll('.choice-btn').forEach(btn => btn.disabled = true);
 
       try {
         const response = await fetch('/api/game/scene', {
@@ -981,31 +912,32 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
 
-        hideLoading();
-
         // Update game info
         updateGameInfo(data);
 
-        // Add to history and display
+        // Extract choices and render buttons
+        const choices = extractChoices(data.message);
+        renderChoiceButtons(choices);
+
+        // Add to history and display the scene
         history.push({ role: 'assistant', content: data.message });
-        addMessage('assistant', data.message, data.sceneType);
+        displayScene(data.message, data.sceneType);
 
         console.log(`Scene: ${data.sceneType}, Day: ${data.day}`);
 
       } catch (error) {
-        hideLoading();
-        addMessage('assistant', `Error: ${error.message}`);
+        displayScene(`Error: ${error.message}`);
+        renderChoiceButtons([]);
       } finally {
         setLoading(false);
       }
     }
 
-    async function sendResponse() {
-      const input = playerInput.value.trim();
+    async function sendResponse(customInput = null) {
+      const input = customInput || playerInput.value.trim();
       if (!input || isLoading || !sessionId) return;
 
       history.push({ role: 'user', content: input });
-      addMessage('user', input);
       playerInput.value = '';
 
       await requestScene();
