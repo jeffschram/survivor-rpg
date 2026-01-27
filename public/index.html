@@ -791,10 +791,10 @@
 
         const data = await response.json();
         
-        if (data.success) {
+        if (data.success && data.authToken) {
           passwordScreen.style.display = 'none';
           mainApp.style.display = 'grid';
-          sessionStorage.setItem('authenticated', 'true');
+          sessionStorage.setItem('authToken', data.authToken);
         } else {
           passwordError.textContent = 'Invalid password';
           passwordInput.value = '';
@@ -809,9 +809,17 @@
     }
 
     // Check if already authenticated this session
-    if (sessionStorage.getItem('authenticated') === 'true') {
+    if (sessionStorage.getItem('authToken')) {
       passwordScreen.style.display = 'none';
       mainApp.style.display = 'grid';
+    }
+
+    // Helper to get auth headers for API calls
+    function getAuthHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': sessionStorage.getItem('authToken') || ''
+      };
     }
 
     passwordBtn.addEventListener('click', checkPassword);
@@ -1166,7 +1174,7 @@
       try {
         const response = await fetch('/api/game/start', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ playerName })
         });
 
@@ -1215,7 +1223,7 @@
       try {
         const response = await fetch('/api/game/scene', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ sessionId, history })
         });
 
