@@ -426,15 +426,18 @@
       position: absolute;
       top: 16px;
       right: 16px;
-      background: var(--bg-input);
+      background: var(--accent);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 8px 12px;
       font-size: 1.1rem;
       cursor: pointer;
       transition: all 0.2s;
-      opacity: 0.5;
+      opacity: 0.85;
       z-index: 10;
+    }
+    .tts-btn:not(.visible) {
+      display: none;
     }
 
     .tts-btn:hover {
@@ -740,7 +743,7 @@
       <section class="game-area" id="gameArea">
         <div class="scene-container" id="sceneContainer">
           <div class="scene-card">
-            <button class="tts-btn" id="ttsBtn" title="Read aloud">🔊</button>
+            <button class="tts-btn" id="ttsBtn" title="Read aloud">🔊 <span>Read Aloud</span></button>
             <div class="scene-content" id="sceneContent">
               <!-- Current scene displays here -->
             </div>
@@ -1138,6 +1141,7 @@
 
     function displayScene(content, sceneType = null) {
       sceneContent.classList.remove('loading');
+      ttsBtn.classList.add('visible');
       sceneContent.innerHTML = formatContent(content, sceneType);
       responseArea.classList.add('visible');
       
@@ -1155,6 +1159,7 @@
       sceneContent.classList.add('loading');
       sceneContent.innerHTML = '<div class="loading-indicator"><span></span><span></span><span></span></div>';
       responseArea.classList.remove('visible');
+      ttsBtn.classList.remove('visible');
     }
 
 
