@@ -794,10 +794,10 @@
 
         const data = await response.json();
         
-        if (data.success && data.authToken) {
-          console.log('Authentication successful, storing token');
-          sessionStorage.setItem('authToken', data.authToken);
-          console.log('Token stored, verification:', sessionStorage.getItem('authToken') ? 'OK' : 'FAILED');
+        if (data.success) {
+          console.log('Authentication successful, storing password');
+          sessionStorage.setItem('sitePassword', password);
+          console.log('Password stored, verification:', sessionStorage.getItem('sitePassword') ? 'OK' : 'FAILED');
           passwordScreen.style.display = 'none';
           mainApp.style.display = 'grid';
         } else {
@@ -814,18 +814,25 @@
     }
 
     // Check if already authenticated this session
-    if (sessionStorage.getItem('authToken')) {
+    if (sessionStorage.getItem('sitePassword')) {
       passwordScreen.style.display = 'none';
       mainApp.style.display = 'grid';
     }
 
-    // Helper to get auth headers for API calls
-    function getAuthHeaders() {
-      const token = sessionStorage.getItem('authToken');
-      console.log('Auth token:', token ? 'present' : 'MISSING');
+    // Helper to get auth headers for /api/game/start
+    function getStartGameHeaders() {
+      const password = sessionStorage.getItem('sitePassword');
+      console.log('Site password:', password ? 'present' : 'MISSING');
       return {
         'Content-Type': 'application/json',
-        'X-Auth-Token': token || ''
+        'X-Site-Password': password || ''
+      };
+    }
+
+    // Helper for regular game API calls (no auth needed, sessionId validates)
+    function getGameHeaders() {
+      return {
+        'Content-Type': 'application/json'
       };
     }
 
@@ -1178,9 +1185,9 @@
         return;
       }
 
-      // Verify auth token exists before starting
-      if (!sessionStorage.getItem('authToken')) {
-        alert('Authentication token missing. Please refresh and log in again.');
+      // Verify password exists before starting
+      if (!sessionStorage.getItem('sitePassword')) {
+        alert('Please log in first.');
         return;
       }
 
@@ -1190,7 +1197,7 @@
         console.log('Starting game for:', playerName);
         const response = await fetch('/api/game/start', {
           method: 'POST',
-          headers: getAuthHeaders(),
+          headers: getStartGameHeaders(),
           body: JSON.stringify({ playerName })
         });
 
@@ -1233,12 +1240,6 @@
     async function requestScene() {
       if (!sessionId) return;
 
-      // Verify auth token exists
-      if (!sessionStorage.getItem('authToken')) {
-        displayScene('Authentication token missing. Please refresh the page and log in again.');
-        return;
-      }
-
       setLoading(true);
       showSceneLoading();
       
@@ -1249,7 +1250,7 @@
         console.log('Requesting scene with sessionId:', sessionId);
         const response = await fetch('/api/game/scene', {
           method: 'POST',
-          headers: getAuthHeaders(),
+          headers: getGameHeaders(),
           body: JSON.stringify({ sessionId, history })
         });
 
