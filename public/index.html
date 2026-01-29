@@ -795,9 +795,11 @@
         const data = await response.json();
         
         if (data.success && data.authToken) {
+          console.log('Authentication successful, storing token');
+          sessionStorage.setItem('authToken', data.authToken);
+          console.log('Token stored, verification:', sessionStorage.getItem('authToken') ? 'OK' : 'FAILED');
           passwordScreen.style.display = 'none';
           mainApp.style.display = 'grid';
-          sessionStorage.setItem('authToken', data.authToken);
         } else {
           passwordError.textContent = 'Invalid password';
           passwordInput.value = '';
@@ -819,9 +821,11 @@
 
     // Helper to get auth headers for API calls
     function getAuthHeaders() {
+      const token = sessionStorage.getItem('authToken');
+      console.log('Auth token:', token ? 'present' : 'MISSING');
       return {
         'Content-Type': 'application/json',
-        'X-Auth-Token': sessionStorage.getItem('authToken') || ''
+        'X-Auth-Token': token || ''
       };
     }
 
@@ -1174,9 +1178,16 @@
         return;
       }
 
+      // Verify auth token exists before starting
+      if (!sessionStorage.getItem('authToken')) {
+        alert('Authentication token missing. Please refresh and log in again.');
+        return;
+      }
+
       setLoading(true);
 
       try {
+        console.log('Starting game for:', playerName);
         const response = await fetch('/api/game/start', {
           method: 'POST',
           headers: getAuthHeaders(),
@@ -1184,7 +1195,10 @@
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+        if (!response.ok) {
+          console.error('Start game error:', data);
+          throw new Error(data.error);
+        }
 
         sessionId = data.sessionId;
         history = [];
@@ -1219,6 +1233,12 @@
     async function requestScene() {
       if (!sessionId) return;
 
+      // Verify auth token exists
+      if (!sessionStorage.getItem('authToken')) {
+        displayScene('Authentication token missing. Please refresh the page and log in again.');
+        return;
+      }
+
       setLoading(true);
       showSceneLoading();
       
@@ -1226,6 +1246,7 @@
       document.querySelectorAll('.choice-btn').forEach(btn => btn.disabled = true);
 
       try {
+        console.log('Requesting scene with sessionId:', sessionId);
         const response = await fetch('/api/game/scene', {
           method: 'POST',
           headers: getAuthHeaders(),
@@ -1233,7 +1254,11 @@
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+        console.log('Scene response status:', response.status);
+        if (!response.ok) {
+          console.error('Scene error:', data);
+          throw new Error(data.error);
+        }
 
         // Update game info
         updateGameInfo(data);
@@ -1249,7 +1274,12 @@
         console.log(`Scene: ${data.sceneType}, Day: ${data.day}`);
 
       } catch (error) {
-        displayScene(`Error: ${error.message}`);
+        console.error('Scene request error:', error);
+        if (error.message.includes('Unauthorized')) {
+          displayScene(`Authentication error. Please refresh the page and log in again.`);
+        } else {
+          displayScene(`Error: ${error.message}`);
+        }
         renderChoiceButtons([]);
       } finally {
         setLoading(false);
