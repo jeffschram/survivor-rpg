@@ -21,9 +21,6 @@ if (!process.env.SITE_PASSWORD) {
   console.error("   The site will be inaccessible until you set it in .env");
 }
 
-// Store authenticated session tokens
-const authenticatedTokens = new Set();
-
 app.post("/api/auth", (req, res) => {
   const { password } = req.body;
   const sitePassword = process.env.SITE_PASSWORD;
@@ -33,28 +30,45 @@ app.post("/api/auth", (req, res) => {
   }
   
   if (password === sitePassword) {
-    // Generate auth token
-    const authToken = `auth_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    authenticatedTokens.add(authToken);
-    res.json({ success: true, authToken });
+    // Return success - client will use this to enable the game start
+    res.json({ success: true, authToken: 'authenticated' });
   } else {
     res.status(401).json({ success: false, error: "Invalid password" });
   }
 });
 
-// Middleware to protect /api/game/* routes
-function requireAuth(req, res, next) {
-  const authToken = req.headers['x-auth-token'];
+// Middleware to protect /api/game/start - require password in header
+function requirePasswordAuth(req, res, next) {
+  const password = req.headers['x-site-password'];
+  const sitePassword = process.env.SITE_PASSWORD;
   
-  if (!authToken || !authenticatedTokens.has(authToken)) {
-    return res.status(401).json({ error: "Unauthorized - please authenticate first" });
+  if (!password || password !== sitePassword) {
+    return res.status(401).json({ error: "Unauthorized - invalid password" });
   }
   
   next();
 }
 
-// Apply auth middleware to all game routes
-app.use("/api/game", requireAuth);
+// Middleware to protect /api/game/scene and other routes - require valid sessionId
+function requireSession(req, res, next) {
+  const { sessionId } = req.body;
+  
+  if (!sessionId || !sessions.has(sessionId)) {
+    return res.status(401).json({ error: "Unauthorized - invalid or expired session" });
+  }
+  
+  next();
+}
+
+// Apply auth middleware
+app.post("/api/game/start", requirePasswordAuth);
+app.post("/api/game/scene", requireSession);
+app.get("/api/game/:sessionId", (req, res, next) => {
+  if (!sessions.has(req.params.sessionId)) {
+    return res.status(401).json({ error: "Unauthorized - invalid session" });
+  }
+  next();
+});
 
 // ============================================================================
 // CONFIGURATION
