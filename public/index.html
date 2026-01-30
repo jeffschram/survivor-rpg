@@ -186,6 +186,7 @@
     .tribe-list li.eliminated {
       text-decoration: line-through;
       opacity: 0.5;
+      display: none;
     }
 
     .opposing-tribe-title {
@@ -1061,25 +1062,54 @@
       }
       if (data.playerTribe) document.getElementById('tribeDisplay').textContent = data.playerTribe;
       if (data.tribes && data.playerTribe && data.opposingTribe) {
-        updateTribes(data.tribes, data.playerTribe, data.opposingTribe);
+        updateTribes(data.tribes, data.playerTribe, data.opposingTribe, data.tribeColors);
       }
     }
 
-    function updateTribes(tribes, playerTribeName, opposingTribeName) {
+    let currentTribeColors = {};
+    
+    function updateTribes(tribes, playerTribeName, opposingTribeName, tribeColors = null) {
+      // Store tribe colors if provided
+      if (tribeColors) {
+        currentTribeColors = tribeColors;
+      }
+      
       // Count active members
       const playerActiveCount = tribes[playerTribeName].filter(m => !m.eliminated).length;
       const opposingActiveCount = tribes[opposingTribeName].filter(m => !m.eliminated).length;
       
-      // Update tribe names with count
-      document.getElementById('playerTribeName').textContent = `${playerTribeName} (${playerActiveCount})`;
-      document.getElementById('opposingTribeName').textContent = `${opposingTribeName} (${opposingActiveCount})`;
+      // Update tribe names with count and colors
+      const playerTribeHeader = document.getElementById('playerTribeName');
+      const opposingTribeHeader = document.getElementById('opposingTribeName');
+      
+      playerTribeHeader.textContent = `${playerTribeName} (${playerActiveCount})`;
+      opposingTribeHeader.textContent = `${opposingTribeName} (${opposingActiveCount})`;
+      
+      // Apply tribe colors
+      if (currentTribeColors[playerTribeName]) {
+        playerTribeHeader.style.backgroundColor = currentTribeColors[playerTribeName];
+        playerTribeHeader.style.padding = '8px 12px';
+        playerTribeHeader.style.borderRadius = '6px';
+        playerTribeHeader.style.color = '#fff';
+      }
+      if (currentTribeColors[opposingTribeName]) {
+        opposingTribeHeader.style.backgroundColor = currentTribeColors[opposingTribeName];
+        opposingTribeHeader.style.padding = '8px 12px';
+        opposingTribeHeader.style.borderRadius = '6px';
+        opposingTribeHeader.style.color = '#fff';
+      }
       
       // Update player's tribe list
       const playerTribeList = document.getElementById('playerTribeList');
       playerTribeList.innerHTML = '';
+      const playerTribeColor = currentTribeColors[playerTribeName];
       tribes[playerTribeName].forEach(member => {
         const li = document.createElement('li');
         li.textContent = member.name;
+        if (playerTribeColor) {
+          li.style.backgroundColor = playerTribeColor;
+          li.style.color = '#fff';
+        }
         if (member.eliminated) {
           li.classList.add('eliminated');
         }
@@ -1089,9 +1119,14 @@
       // Update opposing tribe list
       const opposingTribeList = document.getElementById('opposingTribeList');
       opposingTribeList.innerHTML = '';
+      const opposingTribeColor = currentTribeColors[opposingTribeName];
       tribes[opposingTribeName].forEach(member => {
         const li = document.createElement('li');
         li.textContent = member.name;
+        if (opposingTribeColor) {
+          li.style.backgroundColor = opposingTribeColor;
+          li.style.color = '#fff';
+        }
         if (member.eliminated) {
           li.classList.add('eliminated');
         }

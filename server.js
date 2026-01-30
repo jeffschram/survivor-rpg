@@ -94,6 +94,14 @@ const TRIBE_NAMES = [
   "Koru", "Naru", "Solari", "Vanta", "Aroa", "Kael", "Maru", "Sable", "Kiri", "Tika"
 ];
 
+const TRIBE_COLORS = [
+  "#840404",  // dark red
+  "#207D07",  // dark green
+  "#0C5F9E",  // dark blue
+  "#7B067F",  // dark purple
+  "#AF6C0F"   // dark orange
+];
+
 const MERGED_NAMES = ["Aegis", "Horizon", "Crescent", "Ember", "Nova"];
 
 // ============================================================================
@@ -590,6 +598,7 @@ class Game {
     this.location = pick(LOCATIONS);
     
     const [t1, t2] = pickTwo(TRIBE_NAMES);
+    const [c1, c2] = pickTwo(TRIBE_COLORS);
     
     // Randomly select 18 all-stars from the larger pool
     const selectedAllStars = shuffle(ALL_STARS).slice(0, 18);
@@ -598,6 +607,10 @@ class Game {
     this.tribes = {
       [t1]: [playerName, ...shuffled.slice(0, 8)],  // Player + 8 all-stars = 9
       [t2]: shuffled.slice(8, 17)  // 9 all-stars
+    };
+    this.tribeColors = {
+      [t1]: c1,
+      [t2]: c2
     };
     this.playerTribe = t1;
     this.opposingTribe = t2;
@@ -1000,6 +1013,7 @@ app.post("/api/game/start", (req, res) => {
     location: game.location,
     playerTribe: game.playerTribe,
     opposingTribe: game.opposingTribe,
+    tribeColors: game.tribeColors,
     tribes: {
       [game.playerTribe]: game.tribes[game.playerTribe].map(name => ({
         name,
@@ -1132,6 +1146,7 @@ app.post("/api/game/scene", async (req, res) => {
       phase: game.phase,
       playerTribe: game.playerTribe,
       opposingTribe: game.opposingTribe,
+      tribeColors: game.tribeColors,
       tribes: {
         [game.playerTribe]: game.tribes[game.playerTribe].map(name => ({
           name,
