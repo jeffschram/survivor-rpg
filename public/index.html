@@ -183,6 +183,15 @@
       color: var(--text-muted);
     }
 
+    .tribe-list li.eliminated {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+
+    .opposing-tribe-title {
+      margin-top: 20px;
+    }
+
     .settings-section {
       margin-top: auto;
       padding-top: 20px;
@@ -693,8 +702,11 @@
       </div>
       
       <div class="tribe-section">
-        <h3>Tribemates</h3>
-        <ul class="tribe-list" id="tribematesList"></ul>
+        <h3 id="playerTribeName">My Tribe</h3>
+        <ul class="tribe-list" id="playerTribeList"></ul>
+        
+        <h3 id="opposingTribeName" class="opposing-tribe-title">Opposing Tribe</h3>
+        <ul class="tribe-list" id="opposingTribeList"></ul>
       </div>
       
       <div class="settings-section">
@@ -1048,17 +1060,42 @@
         document.getElementById('phaseDisplay').textContent = phase;
       }
       if (data.playerTribe) document.getElementById('tribeDisplay').textContent = data.playerTribe;
-      if (data.tribemates) updateTribemates(data.tribemates);
+      if (data.tribes && data.playerTribe && data.opposingTribe) {
+        updateTribes(data.tribes, data.playerTribe, data.opposingTribe);
+      }
     }
 
-    function updateTribemates(tribemates) {
-      const list = document.getElementById('tribematesList');
-      list.innerHTML = '';
+    function updateTribes(tribes, playerTribeName, opposingTribeName) {
+      // Count active members
+      const playerActiveCount = tribes[playerTribeName].filter(m => !m.eliminated).length;
+      const opposingActiveCount = tribes[opposingTribeName].filter(m => !m.eliminated).length;
       
-      tribemates.forEach(name => {
+      // Update tribe names with count
+      document.getElementById('playerTribeName').textContent = `${playerTribeName} (${playerActiveCount})`;
+      document.getElementById('opposingTribeName').textContent = `${opposingTribeName} (${opposingActiveCount})`;
+      
+      // Update player's tribe list
+      const playerTribeList = document.getElementById('playerTribeList');
+      playerTribeList.innerHTML = '';
+      tribes[playerTribeName].forEach(member => {
         const li = document.createElement('li');
-        li.textContent = name;
-        list.appendChild(li);
+        li.textContent = member.name;
+        if (member.eliminated) {
+          li.classList.add('eliminated');
+        }
+        playerTribeList.appendChild(li);
+      });
+      
+      // Update opposing tribe list
+      const opposingTribeList = document.getElementById('opposingTribeList');
+      opposingTribeList.innerHTML = '';
+      tribes[opposingTribeName].forEach(member => {
+        const li = document.createElement('li');
+        li.textContent = member.name;
+        if (member.eliminated) {
+          li.classList.add('eliminated');
+        }
+        opposingTribeList.appendChild(li);
       });
     }
 
@@ -1272,7 +1309,14 @@
         history.push({ role: 'assistant', content: data.message });
         displayScene(data.message, data.sceneType);
 
-        console.log(`Scene: ${data.sceneType}, Day: ${data.day}`);
+        // Count remaining contestants from tribes data
+        const playerTribeCount = data.tribes[data.playerTribe].filter(m => !m.eliminated).length;
+        const opposingTribeCount = data.tribes[data.opposingTribe].filter(m => !m.eliminated).length;
+        const totalRemaining = playerTribeCount + opposingTribeCount;
+        
+        console.log(`Day ${data.day} | Scene ${data.sceneIndex + 1} | Type: ${data.sceneType}`);
+        console.log(`Description: ${data.sceneDescription}`);
+        console.log(`Contestants: ${totalRemaining} (${data.playerTribe}: ${playerTribeCount}, ${data.opposingTribe}: ${opposingTribeCount})`);
 
       } catch (error) {
         console.error('Scene request error:', error);
