@@ -114,7 +114,7 @@ const DAY_SCHEDULES = {
     contestants: 18,
     game_phase: "pre-merge",
     scenes: [
-      { scene_type: "camp", scene_description: "Game intro scene — Jeff Probst introduces the game, tribes are formed" },
+      { scene_type: "camp", scene_description: "Game intro scene — Jeff Probst introduces the game and tribes. Players cannot talk to each other yet." },
       { scene_type: "camp", scene_description: "Each tribe arrives at their separate camps" },
       { scene_type: "camp", scene_description: "First impressions, early alliances, camp setup" }
     ]
