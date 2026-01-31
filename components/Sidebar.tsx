@@ -14,6 +14,7 @@ interface SidebarProps {
   tribes: Record<string, TribeMember[]>
   day: number
   phase: string
+  stats?: Record<string, number>
 }
 
 export default function Sidebar({
@@ -23,6 +24,7 @@ export default function Sidebar({
   tribes,
   day,
   phase,
+  stats,
 }: SidebarProps) {
   const [selectedVoice, setSelectedVoice] = useState('')
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0)
@@ -82,6 +84,23 @@ export default function Sidebar({
         <h2 className="text-amber-500 font-bold text-lg mb-2">Day {day}</h2>
         <p className="text-[#888] text-sm capitalize">{phase} Phase</p>
       </div>
+
+      {/* Player Stats */}
+      {stats && (
+        <div className="mb-6 bg-[#252525] rounded-lg p-3">
+          <h3 className="text-[#888] font-semibold mb-2 text-sm">Your Stats</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {Object.entries(stats).map(([stat, value]) => (
+              <div key={stat} className="flex justify-between">
+                <span className="text-[#888]">{stat}</span>
+                <span className="text-white font-mono">
+                  {'★'.repeat(value)}{'☆'.repeat(5 - value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Player's Tribe */}
       <div className="mb-6">

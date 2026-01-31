@@ -2,12 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react'
 
+interface Choice {
+  id: string
+  text: string
+}
+
 interface SceneCardProps {
   content: string
   sceneType: string
   isLoading?: boolean
-  onChoiceSelect: (choice: string) => void
-  onCustomResponse: (response: string) => void
+  choices: Choice[]
+  onChoiceSelect: (choiceId: string) => void
+  gameOver?: boolean
+  gameOverReason?: string
 }
 
 const SCENE_EMOJIS: Record<string, string> = {
@@ -25,15 +32,13 @@ export default function SceneCard({
   content,
   sceneType,
   isLoading,
+  choices,
   onChoiceSelect,
-  onCustomResponse,
+  gameOver,
+  gameOverReason,
 }: SceneCardProps) {
-  const [customInput, setCustomInput] = useState('')
   const [isSpeaking, setIsSpeaking] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
-
-  // Parse content to extract choices
-  const { narrative, choices } = parseContent(content)
 
   useEffect(() => {
     // Stop speaking when content changes
@@ -68,14 +73,6 @@ export default function SceneCard({
     setIsSpeaking(true)
   }
 
-  const handleCustomSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (customInput.trim()) {
-      onCustomResponse(customInput.trim())
-      setCustomInput('')
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="bg-[#1a1a1a] rounded-xl border border-[#333] p-8">
@@ -84,6 +81,25 @@ export default function SceneCard({
           <span className="loading-dot inline-block w-3 h-3 bg-amber-500 rounded-full" />
           <span className="loading-dot inline-block w-3 h-3 bg-amber-500 rounded-full" />
         </div>
+      </div>
+    )
+  }
+
+  // Game over state
+  if (gameOver) {
+    return (
+      <div className="bg-[#1a1a1a] rounded-xl border border-red-800 p-8 text-center">
+        <h2 className="text-3xl font-bold text-red-500 mb-4">🔥 Game Over 🔥</h2>
+        <p className="text-xl text-[#ccc] mb-6">{gameOverReason}</p>
+        <div ref={contentRef} className="mb-6">
+          {formatNarrative(content, sceneType)}
+        </div>
+        <button
+          onClick={() => window.location.href = '/'}
+          className="px-8 py-3 bg-amber-600 hover:bg-amber-500 rounded-lg font-bold text-lg"
+        >
+          Play Again
+        </button>
       </div>
     )
   }
@@ -101,76 +117,40 @@ export default function SceneCard({
 
       {/* Scene Content */}
       <div ref={contentRef} className="pr-12">
-        {formatNarrative(narrative, sceneType)}
+        {formatNarrative(content, sceneType)}
       </div>
 
-      {/* Choices */}
+      {/* Choices - Now from app, not parsed from AI */}
       {choices.length > 0 && (
         <div className="mt-6 space-y-2">
+          <p className="text-sm text-[#888] mb-2">What do you do?</p>
           {choices.map((choice, index) => (
             <button
-              key={index}
-              onClick={() => onChoiceSelect(choice)}
-              className="choice-btn w-full"
+              key={choice.id}
+              onClick={() => onChoiceSelect(choice.id)}
+              className="choice-btn w-full text-left"
             >
-              {choice}
+              <span className="choice-letter">{String.fromCharCode(65 + index)})</span>
+              {' '}{choice.text}
             </button>
           ))}
         </div>
       )}
-
-      {/* Custom Response */}
-      <form onSubmit={handleCustomSubmit} className="mt-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={customInput}
-            onChange={(e) => setCustomInput(e.target.value)}
-            placeholder="Or type your own response..."
-            className="flex-1 px-4 py-2 bg-[#252525] border border-[#333] rounded-lg 
-                       text-white placeholder-[#666] focus:outline-none focus:border-amber-500"
-          />
-          <button
-            type="submit"
-            disabled={!customInput.trim()}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-[#333] 
-                       disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
-          >
-            Send
-          </button>
-        </div>
-      </form>
     </div>
   )
 }
 
-function parseContent(content: string): { narrative: string; choices: string[] } {
+function formatNarrative(content: string, sceneType: string): React.ReactNode {
   const lines = content.split('\n')
-  const choices: string[] = []
-  const narrativeLines: string[] = []
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (/^[A-D]\)/.test(trimmed)) {
-      choices.push(trimmed)
-    } else if (trimmed && !trimmed.startsWith('SCENE_TYPE') && !trimmed.startsWith('STAT_UPDATES')) {
-      narrativeLines.push(line)
-    }
-  }
-
-  return {
-    narrative: narrativeLines.join('\n').trim(),
-    choices,
-  }
-}
-
-function formatNarrative(narrative: string, sceneType: string): React.ReactNode {
-  const lines = narrative.split('\n')
   const elements: React.ReactNode[] = []
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const trimmed = line.trim()
+
+    // Skip choice lines if any slipped through
+    if (/^[A-D]\)/.test(trimmed)) continue
+    if (trimmed.startsWith('SCENE_TYPE') || trimmed.startsWith('STAT_UPDATES')) continue
 
     // Handle headings
     if (trimmed.startsWith('###')) {
