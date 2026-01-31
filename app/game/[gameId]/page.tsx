@@ -40,7 +40,7 @@ export default function GamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchScene = useCallback(async (choiceId?: string) => {
+  const fetchScene = useCallback(async (choiceId?: string, customResponse?: string) => {
     setIsLoading(true)
     setError(null)
 
@@ -50,7 +50,7 @@ export default function GamePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ choiceId }),
+        body: JSON.stringify({ choiceId, customResponse }),
       })
 
       if (!response.ok) {
@@ -86,6 +86,10 @@ export default function GamePage() {
 
   const handleChoiceSelect = (choiceId: string) => {
     fetchScene(choiceId)
+  }
+
+  const handleCustomResponse = (response: string) => {
+    fetchScene(undefined, response)
   }
 
   if (error) {
@@ -141,6 +145,7 @@ export default function GamePage() {
             isLoading={isLoading}
             choices={gameData?.choices || []}
             onChoiceSelect={handleChoiceSelect}
+            onCustomResponse={handleCustomResponse}
             gameOver={gameData?.gameOver}
             gameOverReason={gameData?.gameOverReason}
           />

@@ -13,18 +13,20 @@ interface SceneCardProps {
   isLoading?: boolean
   choices: Choice[]
   onChoiceSelect: (choiceId: string) => void
+  onCustomResponse: (response: string) => void
   gameOver?: boolean
   gameOverReason?: string
 }
 
 const SCENE_EMOJIS: Record<string, string> = {
   camp: '🏕️',
-  challenge: '🏆',
-  challenge_results: '📊',
+  reward_challenge: '🎁',
+  reward_challenge_results: '🎁',
+  immunity_challenge: '🛡️',
+  immunity_challenge_results: '🛡️',
   tribal: '🔥',
   tribal_results: '🗳️',
   merge: '🤝',
-  reward: '🎁',
   finale: '👑',
 }
 
@@ -34,10 +36,12 @@ export default function SceneCard({
   isLoading,
   choices,
   onChoiceSelect,
+  onCustomResponse,
   gameOver,
   gameOverReason,
 }: SceneCardProps) {
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [customInput, setCustomInput] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -136,6 +140,37 @@ export default function SceneCard({
           ))}
         </div>
       )}
+
+      {/* Custom Response */}
+      <form 
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (customInput.trim()) {
+            onCustomResponse(customInput.trim())
+            setCustomInput('')
+          }
+        }} 
+        className="mt-4"
+      >
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            placeholder="Or type your own action..."
+            className="flex-1 px-4 py-2 bg-[#252525] border border-[#333] rounded-lg 
+                       text-white placeholder-[#666] focus:outline-none focus:border-amber-500"
+          />
+          <button
+            type="submit"
+            disabled={!customInput.trim()}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-[#333] 
+                       disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+          >
+            Go
+          </button>
+        </div>
+      </form>
     </div>
   )
 }

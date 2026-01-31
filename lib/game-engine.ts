@@ -3,7 +3,7 @@
  * The AI only generates narrative text based on the outcomes determined here.
  */
 
-import { SceneType, pick, shuffle, isImmunityDay } from './game-logic'
+import { SceneType, pick, shuffle } from './game-logic'
 
 // ============================================================================
 // TYPES
@@ -39,16 +39,19 @@ export interface TribalOutcome {
 
 export interface SceneContext {
   sceneType: SceneType
+  sceneDescription: string  // The scene description from DAY_SCHEDULES
   day: number
   phase: 'pre-merge' | 'merged'
+  playerName: string  // The player's name - NEVER use this in narration, always "you"
   playerTribe: string
   opposingTribe: string
-  tribeMembers: string[]
+  tribeMembers: string[]  // Other tribe members (NOT including the player)
   opposingMembers: string[]
   playerStats: PlayerStats
   eliminated: string[]
   // Dynamic context based on player's last choice
   lastChoice?: Choice
+  customAction?: string  // Player's custom typed action
   challengeOutcome?: ChallengeOutcome
   tribalOutcome?: TribalOutcome
   pendingReveal?: string  // Player eliminated from opposing tribe to reveal
@@ -385,11 +388,21 @@ export function getChoicesForScene(context: SceneContext): Choice[] {
       }
       break
 
-    case 'challenge':
+    case 'reward_challenge':
+      templateKey = 'challenge'
+      break
+
+    case 'immunity_challenge':
       templateKey = phase === 'merged' ? 'challenge_individual' : 'challenge'
       break
 
-    case 'challenge_results':
+    case 'reward_challenge_results':
+      templateKey = challengeOutcome?.playerTribeWins 
+        ? 'challenge_results_win' 
+        : 'challenge_results_loss'
+      break
+
+    case 'immunity_challenge_results':
       templateKey = challengeOutcome?.playerTribeWins 
         ? 'challenge_results_win' 
         : 'challenge_results_loss'
@@ -594,10 +607,11 @@ export function buildNarrativeFacts(context: SceneContext): NarrativeFacts {
     outcomes: []
   }
   
-  const { sceneType, day, playerTribe, opposingTribe, tribeMembers, opposingMembers, lastChoice, challengeOutcome, tribalOutcome, pendingReveal } = context
+  const { sceneType, sceneDescription, day, playerTribe, opposingTribe, tribeMembers, opposingMembers, lastChoice, challengeOutcome, tribalOutcome, pendingReveal } = context
   
-  // Base situation
-  facts.situation.push(`Day ${day} in ${context.phase === 'merged' ? 'the merged tribe' : `the ${playerTribe} camp`}`)
+  // Primary scene directive from DAY_SCHEDULES
+  facts.situation.push(`SCENE FOCUS: ${sceneDescription}`)
+  facts.situation.push(`Day ${day}, ${context.phase} phase`)
   
   // Scene-specific facts
   switch (sceneType) {
@@ -608,33 +622,60 @@ export function buildNarrativeFacts(context: SceneContext): NarrativeFacts {
       }
       if (lastChoice) {
         facts.outcomes.push(`The player chose to: ${lastChoice.text}`)
-        // Describe effect narratively
         const effectDesc = describeStatEffects(lastChoice.effects)
         if (effectDesc) facts.outcomes.push(effectDesc)
+      } else if (context.customAction) {
+        facts.outcomes.push(`The player decided to: ${context.customAction}`)
       }
       break
       
-    case 'challenge':
-      facts.situation.push(`It's time for a ${isImmunityDay(day) ? 'immunity' : 'reward'} challenge`)
+    case 'reward_challenge':
+      facts.situation.push(`It's time for a REWARD challenge - compete for comfort, food, or an advantage`)
+      if (lastChoice) {
+        facts.outcomes.push(`The player's strategy: ${lastChoice.text}`)
+      } else if (context.customAction) {
+        facts.outcomes.push(`The player's approach: ${context.customAction}`)
+      }
+      break
+
+    case 'immunity_challenge':
+      facts.situation.push(`It's time for an IMMUNITY challenge - the losing tribe goes to Tribal Council!`)
       if (pendingReveal) {
         facts.situation.push(`As tribes arrive, the player notices ${pendingReveal} is missing from ${opposingTribe} - they were voted out`)
       }
       if (lastChoice) {
         facts.outcomes.push(`The player's strategy: ${lastChoice.text}`)
+      } else if (context.customAction) {
+        facts.outcomes.push(`The player's approach: ${context.customAction}`)
       }
       break
       
-    case 'challenge_results':
+    case 'reward_challenge_results':
       if (challengeOutcome) {
         const winner = challengeOutcome.playerTribeWins ? playerTribe : opposingTribe
-        facts.outcomes.push(`${winner} WINS the challenge!`)
+        facts.outcomes.push(`${winner} WINS the reward!`)
+        facts.outcomes.push(`The player performed ${challengeOutcome.playerPerformance}ly`)
+        if (challengeOutcome.playerTribeWins) {
+          facts.outcomes.push(`The tribe celebrates their reward - a boost to morale!`)
+        } else {
+          facts.outcomes.push(`The tribe returns to camp empty-handed and disappointed`)
+        }
+      }
+      break
+
+    case 'immunity_challenge_results':
+      if (challengeOutcome) {
+        const winner = challengeOutcome.playerTribeWins ? playerTribe : opposingTribe
+        facts.outcomes.push(`${winner} WINS IMMUNITY!`)
         facts.outcomes.push(`Victory margin: ${challengeOutcome.margin}`)
         facts.outcomes.push(`The player performed ${challengeOutcome.playerPerformance}ly`)
         if (challengeOutcome.mvp) {
           facts.outcomes.push(`MVP of the challenge: ${challengeOutcome.mvp}`)
         }
-        if (!challengeOutcome.playerTribeWins && isImmunityDay(day)) {
-          facts.outcomes.push(`${playerTribe} must go to Tribal Council tonight`)
+        if (!challengeOutcome.playerTribeWins) {
+          facts.outcomes.push(`${playerTribe} must go to Tribal Council tonight - someone is going home`)
+        } else {
+          facts.outcomes.push(`${playerTribe} is safe! The other tribe goes to Tribal Council`)
         }
       }
       break
@@ -697,30 +738,37 @@ export function buildNarrativePrompt(
 ): string {
   const sceneEmoji: Record<SceneType, string> = {
     'camp': '🏕️',
-    'challenge': '🏆',
-    'challenge_results': '🏆',
+    'reward_challenge': '🎁',
+    'reward_challenge_results': '🎁',
+    'immunity_challenge': '🛡️',
+    'immunity_challenge_results': '🛡️',
     'tribal': '🔥',
     'tribal_results': '🔥'
   }
   
-  return `You are the narrator for a Survivor reality TV game. Write an immersive scene.
+  // ∆ Scene Description
+  const sceneDescription = `You are the narrator for a Survivor reality TV game. Write from the PLAYER'S perspective.
+
+CRITICAL: The player's name is "${context.playerName}" - NEVER use this name. ALWAYS use "you" and "your" instead. This is second-person narration.
 
 LOCATION: ${location}
 DAY: ${context.day}
 SCENE TYPE: ${sceneEmoji[context.sceneType]} ${context.sceneType.toUpperCase()}
+PLAYER'S TRIBE: ${context.playerTribe}
+TRIBEMATES: ${context.tribeMembers.join(', ')}
 
 SITUATION:
 ${facts.situation.map(s => `- ${s}`).join('\n')}
 
-${facts.characters.length > 0 ? `CHARACTERS TO FEATURE:\n${facts.characters.map(c => `- ${c}`).join('\n')}\n` : ''}
 ${facts.outcomes.length > 0 ? `WHAT HAPPENS:\n${facts.outcomes.map(o => `- ${o}`).join('\n')}\n` : ''}
-
 INSTRUCTIONS:
-- Write 2-3 short paragraphs
-- Use "you" for the player (second person)
-- Include dialogue from other characters
+- Write 1 paragraph only
+- ALWAYS use "you" for the player, NEVER "${context.playerName}"
 - Start with a scene title using ###
-- Be dramatic and immersive
-- DO NOT include choices - those will be added separately
-- DO NOT mention stats or game mechanics`
+- Be concise and dramatic`
+  console.log('∆ Scene Description: --------------------------------');
+  console.log(sceneDescription)
+  console.log('-----------------------------------------------------');
+
+  return sceneDescription
 }

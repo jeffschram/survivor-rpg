@@ -5,7 +5,6 @@ import OpenAI from 'openai'
 import {
   getCurrentScene,
   getSceneSequence,
-  isImmunityDay,
   pick,
   MERGED_NAMES,
   SceneType,
@@ -81,6 +80,7 @@ export async function POST(
     const { gameId } = params
     const body = await request.json()
     const choiceId = body.choiceId as string | undefined
+    const customResponse = body.customResponse as string | undefined
 
     // Get game from Convex
     const game = await convex.query(api.games.getGame, { gameId })
@@ -115,21 +115,28 @@ export async function POST(
     
     // Find the choice the player made (if any)
     let selectedChoice: Choice | undefined
+    let customAction: string | undefined
+    
     if (choiceId) {
       // Get choices for the PREVIOUS scene to find what they selected
       const prevSceneContext: SceneContext = {
         sceneType: (gameState.lastSceneType || 'camp') as SceneType,
+        sceneDescription: '', // Not needed for choice lookup
         day: gameState.day,
         phase: gameState.phase as 'pre-merge' | 'merged',
+        playerName: gameState.playerName,
         playerTribe: gameState.playerTribe,
         opposingTribe: gameState.opposingTribe,
-        tribeMembers: playerTribeMembers,
+        tribeMembers: playerTribeMembers.filter(m => m !== gameState.playerName),
         opposingMembers: opposingTribeMembers,
         playerStats: gameState.stats,
         eliminated: gameState.eliminated,
       }
       const prevChoices = getChoicesForScene(prevSceneContext)
       selectedChoice = prevChoices.find(c => c.id === choiceId)
+    } else if (customResponse) {
+      // Player wrote their own action
+      customAction = customResponse
     }
 
     // Apply stat effects from player's choice
@@ -137,11 +144,17 @@ export async function POST(
     if (selectedChoice) {
       newStats = applyStatEffects(newStats, selectedChoice.effects)
       console.log(`Applied choice effects:`, selectedChoice.effects)
+    } else if (customAction) {
+      // Custom actions get a small Strategy boost for creativity
+      newStats = applyStatEffects(newStats, { Strategy: 1 })
+      console.log(`Custom action: "${customAction}" - applied Strategy +1`)
     }
 
     // Determine challenge outcome (BEFORE AI call)
     let challengeOutcome: ChallengeOutcome | undefined
-    if (currentScene.scene_type === 'challenge_results') {
+    const isResultsScene = currentScene.scene_type === 'reward_challenge_results' || 
+                           currentScene.scene_type === 'immunity_challenge_results'
+    if (isResultsScene) {
       challengeOutcome = determineChallengeOutcome(
         newStats,
         gameState.playerTribe,
@@ -170,15 +183,18 @@ export async function POST(
     
     const sceneContext: SceneContext = {
       sceneType: currentScene.scene_type as SceneType,
+      sceneDescription: currentScene.scene_description,
       day: gameState.day,
       phase: gameState.phase as 'pre-merge' | 'merged',
+      playerName: gameState.playerName,
       playerTribe: gameState.playerTribe,
       opposingTribe: gameState.opposingTribe,
-      tribeMembers: playerTribeMembers,
+      tribeMembers: playerTribeMembers.filter(m => m !== gameState.playerName), // Exclude player
       opposingMembers: opposingTribeMembers,
       playerStats: newStats,
       eliminated: gameState.eliminated,
       lastChoice: selectedChoice,
+      customAction,
       challengeOutcome,
       tribalOutcome,
       pendingReveal: gameState.pendingOpposingElimination,
@@ -191,15 +207,16 @@ export async function POST(
     const narrativeFacts = buildNarrativeFacts(sceneContext)
     const narrativePrompt = buildNarrativePrompt(sceneContext, narrativeFacts, gameState.location)
 
+    // ∆ Scene Description
     // Call OpenAI for narrative only
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [
         { role: 'system', content: narrativePrompt },
-        { role: 'user', content: 'Write the scene.' },
+        { role: 'user', content: 'Write the scene. Keep it to just 1 paragraph after the title. Be dramatic and immersive.' },
       ],
       temperature: 0.85,
-      max_tokens: 400,
+      max_tokens: 280,
     })
 
     const rawMessage = response.choices[0]?.message?.content || ''
@@ -237,8 +254,10 @@ export async function POST(
     const tribe1 = [...gameState.tribes.tribe1]
     const tribe2 = [...gameState.tribes.tribe2]
 
-    // Reveal pending elimination at challenge
-    if (currentScene.scene_type === 'challenge' && gameState.pendingOpposingElimination) {
+    // Reveal pending elimination at any challenge (both tribes meet)
+    const isChallengeScene = currentScene.scene_type === 'reward_challenge' || 
+                             currentScene.scene_type === 'immunity_challenge'
+    if (isChallengeScene && gameState.pendingOpposingElimination) {
       newEliminated.push(gameState.pendingOpposingElimination)
       const idx = tribe2.indexOf(gameState.pendingOpposingElimination)
       if (idx !== -1) tribe2.splice(idx, 1)
@@ -259,13 +278,13 @@ export async function POST(
       if (idx2 !== -1) tribe2.splice(idx2, 1)
     }
 
-    // Set pending elimination if player won immunity challenge (pre-merge)
-    if (currentScene.scene_type === 'challenge_results' && 
+    // Set pending elimination if player won IMMUNITY challenge (pre-merge)
+    // Only immunity challenges lead to tribal council for the losing tribe
+    if (currentScene.scene_type === 'immunity_challenge_results' && 
         challengeOutcome?.playerTribeWins && 
-        !gameState.merged && 
-        isImmunityDay(gameState.day)) {
+        !gameState.merged) {
       if (tribe2.length > 0 && !newPendingElimination) {
-        // Determine who opponent tribe eliminates
+        // Determine who opponent tribe eliminates at their tribal council
         const oppTribalOutcome = determineTribalOutcome(
           getActiveTribeMembers(tribe2, newEliminated),
           newStats,
