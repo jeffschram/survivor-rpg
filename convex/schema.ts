@@ -22,7 +22,7 @@ export default defineSchema({
       tribe2Color: v.string(),
     }),
     
-    // Tribe members - stored as JSON strings for flexibility
+    // Tribe members
     tribes: v.object({
       tribe1: v.array(v.string()),
       tribe2: v.array(v.string()),
@@ -31,14 +31,15 @@ export default defineSchema({
     // Game state
     eliminated: v.array(v.string()),
     jury: v.array(v.string()),
-    day: v.number(),
-    phase: v.string(), // "pre-merge" | "merge" | "merged"
+    episode: v.number(),
+    dayIndex: v.number(),        // Which day within the episode (0, 1, or 2)
+    sceneIndexInDay: v.number(), // Which scene within the current day
+    phase: v.string(),
     merged: v.boolean(),
     mergedTribeName: v.optional(v.string()),
     
     // Scene tracking
     sceneCount: v.number(),
-    sceneIndexInDay: v.number(),
     lastSceneType: v.optional(v.string()),
     lastChallengeWon: v.optional(v.boolean()),
     pendingOpposingElimination: v.optional(v.string()),

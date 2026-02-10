@@ -10,18 +10,27 @@ interface TribeMember {
   eliminated: boolean
 }
 
+interface Choice {
+  id: string
+  text: string
+}
+
 interface GameData {
   message: string
   sceneType: string
   sceneDescription: string
   sceneIndex: number
   stats: Record<string, number>
+  episode: number
   day: number
   phase: string
   playerTribe: string
   opposingTribe: string
   tribeColors: Record<string, string>
   tribes: Record<string, TribeMember[]>
+  choices: Choice[]
+  gameOver?: boolean
+  gameOverReason?: string
 }
 
 export default function GamePage() {
@@ -32,7 +41,7 @@ export default function GamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchScene = useCallback(async (userInput?: string) => {
+  const fetchScene = useCallback(async (choiceId?: string, customResponse?: string) => {
     setIsLoading(true)
     setError(null)
 
@@ -42,7 +51,7 @@ export default function GamePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userInput }),
+        body: JSON.stringify({ choiceId, customResponse }),
       })
 
       if (!response.ok) {
@@ -53,12 +62,16 @@ export default function GamePage() {
       setGameData(data)
 
       // Log scene info to console
-      console.log(`Day ${data.day} | Scene ${data.sceneIndex} | [gameId]/page.tsxType: ${data.sceneType}`)
+      console.log(`Episode ${data.episode} | Day ${data.day} | Scene ${data.sceneIndex} | Type: ${data.sceneType}`)
       console.log(`Description: ${data.sceneDescription}`)
       
       const playerCount = data.tribes[data.playerTribe].filter((m: TribeMember) => !m.eliminated).length
       const opposingCount = data.tribes[data.opposingTribe].filter((m: TribeMember) => !m.eliminated).length
       console.log(`Contestants: ${playerCount + opposingCount} (${data.playerTribe}: ${playerCount}, ${data.opposingTribe}: ${opposingCount})`)
+      
+      if (data.gameOver) {
+        console.log('GAME OVER:', data.gameOverReason)
+      }
     } catch (err) {
       console.error('Error fetching scene:', err)
       setError('Failed to load scene. Please try again.')
@@ -72,15 +85,12 @@ export default function GamePage() {
     fetchScene()
   }, [fetchScene])
 
-  const handleChoiceSelect = (choice: string) => {
-    // Extract just the choice letter or full text
-    const match = choice.match(/^([A-D])\)/)
-    const response = match ? `I choose ${match[1]}` : choice
-    fetchScene(response)
+  const handleChoiceSelect = (choiceId: string) => {
+    fetchScene(choiceId)
   }
 
   const handleCustomResponse = (response: string) => {
-    fetchScene(response)
+    fetchScene(undefined, response)
   }
 
   if (error) {
@@ -108,8 +118,10 @@ export default function GamePage() {
           opposingTribe={gameData.opposingTribe}
           tribeColors={gameData.tribeColors}
           tribes={gameData.tribes}
+          episode={gameData.episode}
           day={gameData.day}
           phase={gameData.phase}
+          stats={gameData.stats}
         />
       )}
 
@@ -123,7 +135,7 @@ export default function GamePage() {
             </h1>
             {gameData && (
               <p className="text-[#888] mt-1">
-                Game ID: <code className="text-[#666]">{gameId}</code>
+                Day {gameData.day} • Episode {gameData.episode} • {gameData.phase}
               </p>
             )}
           </div>
@@ -133,8 +145,11 @@ export default function GamePage() {
             content={gameData?.message || ''}
             sceneType={gameData?.sceneType || 'camp'}
             isLoading={isLoading}
+            choices={gameData?.choices || []}
             onChoiceSelect={handleChoiceSelect}
             onCustomResponse={handleCustomResponse}
+            gameOver={gameData?.gameOver}
+            gameOverReason={gameData?.gameOverReason}
           />
         </div>
       </main>

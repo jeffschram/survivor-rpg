@@ -39,12 +39,13 @@ export const createGame = mutation({
       tribes: args.tribes,
       eliminated: [],
       jury: [],
-      day: 1,
+      episode: 1,
+      dayIndex: 0,        // Start at first day of episode
+      sceneIndexInDay: 0, // Start at first scene of day
       phase: "pre-merge",
       merged: false,
       mergedTribeName: undefined,
       sceneCount: 0,
-      sceneIndexInDay: 0,
       lastSceneType: undefined,
       lastChallengeWon: undefined,
       pendingOpposingElimination: undefined,
@@ -78,12 +79,13 @@ export const updateGame = mutation({
     updates: v.object({
       eliminated: v.optional(v.array(v.string())),
       jury: v.optional(v.array(v.string())),
-      day: v.optional(v.number()),
+      episode: v.optional(v.number()),
+      dayIndex: v.optional(v.number()),
+      sceneIndexInDay: v.optional(v.number()),
       phase: v.optional(v.string()),
       merged: v.optional(v.boolean()),
       mergedTribeName: v.optional(v.string()),
       sceneCount: v.optional(v.number()),
-      sceneIndexInDay: v.optional(v.number()),
       lastSceneType: v.optional(v.string()),
       lastChallengeWon: v.optional(v.boolean()),
       pendingOpposingElimination: v.optional(v.string()),
@@ -120,12 +122,13 @@ export const updateGame = mutation({
     // Only include fields that are provided
     if (args.updates.eliminated !== undefined) updateData.eliminated = args.updates.eliminated
     if (args.updates.jury !== undefined) updateData.jury = args.updates.jury
-    if (args.updates.day !== undefined) updateData.day = args.updates.day
+    if (args.updates.episode !== undefined) updateData.episode = args.updates.episode
+    if (args.updates.dayIndex !== undefined) updateData.dayIndex = args.updates.dayIndex
+    if (args.updates.sceneIndexInDay !== undefined) updateData.sceneIndexInDay = args.updates.sceneIndexInDay
     if (args.updates.phase !== undefined) updateData.phase = args.updates.phase
     if (args.updates.merged !== undefined) updateData.merged = args.updates.merged
     if (args.updates.mergedTribeName !== undefined) updateData.mergedTribeName = args.updates.mergedTribeName
     if (args.updates.sceneCount !== undefined) updateData.sceneCount = args.updates.sceneCount
-    if (args.updates.sceneIndexInDay !== undefined) updateData.sceneIndexInDay = args.updates.sceneIndexInDay
     if (args.updates.lastSceneType !== undefined) updateData.lastSceneType = args.updates.lastSceneType
     if (args.updates.lastChallengeWon !== undefined) updateData.lastChallengeWon = args.updates.lastChallengeWon
     if (args.updates.pendingOpposingElimination !== undefined) updateData.pendingOpposingElimination = args.updates.pendingOpposingElimination
@@ -149,6 +152,18 @@ export const listGames = query({
       .order("desc")
       .take(10)
     return games
+  },
+})
+
+// Clear all games (for migrations)
+export const clearAllGames = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const games = await ctx.db.query("games").collect()
+    for (const game of games) {
+      await ctx.db.delete(game._id)
+    }
+    return { deleted: games.length }
   },
 })
 

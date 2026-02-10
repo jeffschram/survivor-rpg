@@ -68,10 +68,10 @@ export async function POST(request: NextRequest) {
         tribe2: tribe2Members,
       },
       stats: {
-        Social: 2.5,
-        Strategy: 2.5,
-        Challenge: 2.5,
-        Threat: 2.5,
+        Social: 3,
+        Strategy: 3,
+        Challenge: 3,
+        Threat: 3,
       },
     })
 
