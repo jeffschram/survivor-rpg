@@ -12,6 +12,7 @@ interface SidebarProps {
   opposingTribe: string
   tribeColors: Record<string, string>
   tribes: Record<string, TribeMember[]>
+  episode: number
   day: number
   phase: string
   stats?: Record<string, number>
@@ -22,6 +23,7 @@ export default function Sidebar({
   opposingTribe,
   tribeColors,
   tribes,
+  episode,
   day,
   phase,
   stats,
@@ -81,7 +83,8 @@ export default function Sidebar({
     <aside className="w-72 bg-[#1a1a1a] border-r border-[#333] h-screen overflow-y-auto p-4">
       {/* Game Status */}
       <div className="mb-6">
-        <h2 className="text-amber-500 font-bold text-lg mb-2">Day {day}</h2>
+        <h2 className="text-amber-500 font-bold text-lg mb-1">Day {day}</h2>
+        <p className="text-[#666] text-xs mb-1">Episode {episode}</p>
         <p className="text-[#888] text-sm capitalize">{phase} Phase</p>
       </div>
 

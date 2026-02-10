@@ -21,6 +21,7 @@ interface GameData {
   sceneDescription: string
   sceneIndex: number
   stats: Record<string, number>
+  episode: number
   day: number
   phase: string
   playerTribe: string
@@ -61,7 +62,7 @@ export default function GamePage() {
       setGameData(data)
 
       // Log scene info to console
-      console.log(`Day ${data.day} | Scene ${data.sceneIndex} | Type: ${data.sceneType}`)
+      console.log(`Episode ${data.episode} | Day ${data.day} | Scene ${data.sceneIndex} | Type: ${data.sceneType}`)
       console.log(`Description: ${data.sceneDescription}`)
       
       const playerCount = data.tribes[data.playerTribe].filter((m: TribeMember) => !m.eliminated).length
@@ -117,6 +118,7 @@ export default function GamePage() {
           opposingTribe={gameData.opposingTribe}
           tribeColors={gameData.tribeColors}
           tribes={gameData.tribes}
+          episode={gameData.episode}
           day={gameData.day}
           phase={gameData.phase}
           stats={gameData.stats}
@@ -133,7 +135,7 @@ export default function GamePage() {
             </h1>
             {gameData && (
               <p className="text-[#888] mt-1">
-                Day {gameData.day} • {gameData.phase}
+                Day {gameData.day} • Episode {gameData.episode} • {gameData.phase}
               </p>
             )}
           </div>

@@ -5,8 +5,12 @@ import OpenAI from 'openai'
 import {
   getCurrentScene,
   getSceneSequence,
+  getEpisodeSchedule,
+  getDayNumber,
   pick,
   MERGED_NAMES,
+  MERGE_EPISODE,
+  TOTAL_EPISODES,
   SceneType,
 } from '@/lib/game-logic'
 import {
@@ -43,12 +47,13 @@ interface GameState {
   }
   eliminated: string[]
   jury: string[]
-  day: number
+  episode: number
+  dayIndex: number         // Which day within episode (0, 1, 2)
+  sceneIndexInDay: number  // Which scene within current day
   phase: string
   merged: boolean
   mergedTribeName?: string
   sceneCount: number
-  sceneIndexInDay: number
   lastSceneType?: string
   lastChallengeWon?: boolean
   pendingOpposingElimination?: string
@@ -89,21 +94,42 @@ export async function POST(
       return NextResponse.json({ error: 'Game not found' }, { status: 404 })
     }
 
+    // Map game data with fallbacks for safety
     const gameState: GameState = {
-      ...game,
+      gameId: game.gameId,
+      playerName: game.playerName,
+      location: game.location,
+      playerTribe: game.playerTribe,
+      opposingTribe: game.opposingTribe,
+      tribeColors: game.tribeColors,
+      tribes: game.tribes,
+      eliminated: game.eliminated,
+      jury: game.jury,
+      episode: game.episode ?? 1,
+      dayIndex: game.dayIndex ?? 0,
+      sceneIndexInDay: game.sceneIndexInDay ?? 0,
+      phase: game.phase,
+      merged: game.merged,
+      mergedTribeName: game.mergedTribeName ?? undefined,
+      sceneCount: game.sceneCount ?? 0,
+      lastSceneType: game.lastSceneType ?? undefined,
       lastChallengeWon: game.lastChallengeWon ?? undefined,
       pendingOpposingElimination: game.pendingOpposingElimination ?? undefined,
-      mergedTribeName: game.mergedTribeName ?? undefined,
-      lastSceneType: game.lastSceneType ?? undefined,
+      stats: game.stats,
+      history: game.history,
     }
 
+    // Get current day number and scene
+    const currentDayNumber = getDayNumber(gameState.episode, gameState.dayIndex)
     const currentScene = getCurrentScene(
-      gameState.day,
+      gameState.episode,
+      gameState.dayIndex,
       gameState.sceneIndexInDay,
       gameState.lastChallengeWon ?? null
     )
 
-    console.log(`Day ${gameState.day} | Scene ${gameState.sceneIndexInDay} | Type: ${currentScene.scene_type}`)
+    const episodeData = getEpisodeSchedule(gameState.episode)
+    console.log(`Episode ${gameState.episode} | Day ${currentDayNumber} | Scene ${gameState.sceneIndexInDay} | Type: ${currentScene.scene_type}`)
     console.log(`Description: ${currentScene.scene_description}`)
 
     // =========================================================================
@@ -122,7 +148,8 @@ export async function POST(
       const prevSceneContext: SceneContext = {
         sceneType: (gameState.lastSceneType || 'camp') as SceneType,
         sceneDescription: '', // Not needed for choice lookup
-        day: gameState.day,
+        episode: gameState.episode,
+        day: currentDayNumber,
         phase: gameState.phase as 'pre-merge' | 'merged',
         playerName: gameState.playerName,
         playerTribe: gameState.playerTribe,
@@ -184,7 +211,8 @@ export async function POST(
     const sceneContext: SceneContext = {
       sceneType: currentScene.scene_type as SceneType,
       sceneDescription: currentScene.scene_description,
-      day: gameState.day,
+      episode: gameState.episode,
+      day: currentDayNumber,
       phase: gameState.phase as 'pre-merge' | 'merged',
       playerName: gameState.playerName,
       playerTribe: gameState.playerTribe,
@@ -225,25 +253,33 @@ export async function POST(
     // GAME STATE UPDATES (deterministic, not from AI)
     // =========================================================================
 
+    // Use challenge outcome to determine win/loss for scene sequence
+    const challengeWon = challengeOutcome?.playerTribeWins ?? gameState.lastChallengeWon
+    const daySceneSequence = getSceneSequence(gameState.episode, gameState.dayIndex, challengeWon ?? null)
+
     let newSceneIndexInDay = gameState.sceneIndexInDay + 1
-    let newDay = gameState.day
+    let newDayIndex = gameState.dayIndex
+    let newEpisode = gameState.episode
     let newMerged = gameState.merged
     let newMergedTribeName = gameState.mergedTribeName
     let newPhase = gameState.phase
 
-    // Use challenge outcome to determine win/loss for scene sequence
-    const challengeWon = challengeOutcome?.playerTribeWins ?? gameState.lastChallengeWon
-    const sequence = getSceneSequence(gameState.day, challengeWon ?? null)
-
-    if (newSceneIndexInDay >= sequence.length) {
-      newDay++
+    // Check if we've finished all scenes in current day
+    if (newSceneIndexInDay >= daySceneSequence.length) {
       newSceneIndexInDay = 0
+      newDayIndex++
+      
+      // Check if we've finished all days in current episode
+      if (newDayIndex >= episodeData.days.length) {
+        newDayIndex = 0
+        newEpisode++
 
-      // Check for merge
-      if (newDay === 25 && !newMerged) {
-        newMerged = true
-        newMergedTribeName = pick(MERGED_NAMES)
-        newPhase = 'merged'
+        // Check for merge at episode 7 (12 players)
+        if (newEpisode === MERGE_EPISODE && !newMerged) {
+          newMerged = true
+          newMergedTribeName = pick(MERGED_NAMES)
+          newPhase = 'merged'
+        }
       }
     }
 
@@ -268,7 +304,7 @@ export async function POST(
     if (tribalOutcome && tribalOutcome.eliminated !== 'PLAYER') {
       newEliminated.push(tribalOutcome.eliminated)
       // Add to jury if post-merge
-      if (gameState.merged || gameState.day >= 20) {
+      if (gameState.merged || gameState.episode >= MERGE_EPISODE) {
         newJury.push(tribalOutcome.eliminated)
       }
       // Remove from appropriate tribe
@@ -306,13 +342,17 @@ export async function POST(
       newHistory.splice(0, newHistory.length - 20)
     }
 
+    // Check for game end
+    const isFinale = newEpisode > TOTAL_EPISODES
+
     // Update game in Convex
     await convex.mutation(api.games.updateGame, {
       gameId,
       updates: {
         sceneCount: gameState.sceneCount + 1,
+        dayIndex: newDayIndex,
         sceneIndexInDay: newSceneIndexInDay,
-        day: newDay,
+        episode: newEpisode,
         lastSceneType: currentScene.scene_type,
         lastChallengeWon: challengeOutcome?.playerTribeWins ?? gameState.lastChallengeWon,
         pendingOpposingElimination: newPendingElimination,
@@ -343,13 +383,17 @@ export async function POST(
     // Check if player was eliminated
     const playerEliminated = tribalOutcome?.eliminated === 'PLAYER'
 
+    // Get the new day number for response
+    const newDayNumber = getDayNumber(newEpisode, newDayIndex)
+
     return NextResponse.json({
       message: rawMessage.trim(),
       sceneType: currentScene.scene_type,
       sceneDescription: currentScene.scene_description,
       sceneIndex: newSceneIndexInDay,
       stats: newStats,
-      day: newDay,
+      episode: newEpisode,
+      day: currentDayNumber,
       phase: newPhase,
       playerTribe: gameState.playerTribe,
       opposingTribe: gameState.opposingTribe,
@@ -367,14 +411,18 @@ export async function POST(
           eliminated: newEliminated.includes(name),
         })),
       },
-      // NEW: App-generated choices
-      choices: playerEliminated ? [] : choices.map(c => ({
+      // App-generated choices
+      choices: playerEliminated || isFinale ? [] : choices.map(c => ({
         id: c.id,
         text: c.text,
       })),
-      // NEW: Game over state
-      gameOver: playerEliminated,
-      gameOverReason: playerEliminated ? 'You have been voted out. The tribe has spoken.' : undefined,
+      // Game over state
+      gameOver: playerEliminated || isFinale,
+      gameOverReason: playerEliminated 
+        ? 'You have been voted out. The tribe has spoken.' 
+        : isFinale 
+          ? 'Congratulations! You have completed Survivor!' 
+          : undefined,
     })
   } catch (error) {
     console.error('Scene generation error:', error)

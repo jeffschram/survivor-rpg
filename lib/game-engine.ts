@@ -39,8 +39,9 @@ export interface TribalOutcome {
 
 export interface SceneContext {
   sceneType: SceneType
-  sceneDescription: string  // The scene description from DAY_SCHEDULES
-  day: number
+  sceneDescription: string  // The scene description from EPISODE_SCHEDULES
+  episode: number
+  day: number  // The actual day number (1-39)
   phase: 'pre-merge' | 'merged'
   playerName: string  // The player's name - NEVER use this in narration, always "you"
   playerTribe: string
@@ -377,9 +378,10 @@ export function getChoicesForScene(context: SceneContext): Choice[] {
 
   switch (sceneType) {
     case 'camp':
-      if (day === 1) {
+      // Day 1-3 = intro, Days 4-12 = early, Days 13-18 = mid, Days 19+ = late
+      if (day <= 3) {
         templateKey = 'camp_intro'
-      } else if (day < 11) {
+      } else if (day <= 12) {
         templateKey = 'camp_early'
       } else if (phase === 'pre-merge') {
         templateKey = 'camp_mid'
@@ -409,7 +411,8 @@ export function getChoicesForScene(context: SceneContext): Choice[] {
       break
 
     case 'tribal':
-      if (day === 39) {
+      // Final tribal council on day 39
+      if (day >= 39) {
         templateKey = 'tribal_final'
       } else {
         templateKey = 'tribal'
@@ -609,7 +612,7 @@ export function buildNarrativeFacts(context: SceneContext): NarrativeFacts {
   
   const { sceneType, sceneDescription, day, playerTribe, opposingTribe, tribeMembers, opposingMembers, lastChoice, challengeOutcome, tribalOutcome, pendingReveal } = context
   
-  // Primary scene directive from DAY_SCHEDULES
+  // Primary scene directive from EPISODE_SCHEDULES
   facts.situation.push(`SCENE FOCUS: ${sceneDescription}`)
   facts.situation.push(`Day ${day}, ${context.phase} phase`)
   
